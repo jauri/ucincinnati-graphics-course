@@ -1,0 +1,68 @@
+<!doctype html>
+<!--
+  Ways to Color a Cube - page 4 of 5.
+  The five .html pages are identical except for: which tab is
+  highlighted, the caption, and which <script> they load.
+  (Page 5 also has a small menu for picking the interpolation rule.)
+  Open this file directly in a browser; no server is needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube Coloring 4: Interpolated</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #1e1e1e;
+      color: #ddd;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    /* The tab bar: five plain links, the current page highlighted. */
+    nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 8px 0; background: #111; }
+    nav a {
+      padding: 8px 16px;
+      color: #aaa;
+      text-decoration: none;
+      border-radius: 6px 6px 0 0;
+      background: #2a2a2a;
+    }
+    nav a:hover { color: #fff; }
+    nav a.current { background: #1e1e1e; color: #fff; font-weight: bold; }
+    /* The canvas fills the remaining space; JS matches its pixel size. */
+    canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+    .caption { padding: 4px 16px 12px; max-width: 70ch; line-height: 1.4; }
+    .caption h1 { font-size: 1.1rem; margin: 8px 0; }
+    .caption p { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="1-solid-uniform.html">1. Solid (uniform)</a>
+    <a href="2-solid-attribute.html">2. Solid (attribute)</a>
+    <a href="3-face-colors.html">3. Face colors</a>
+    <a href="4-vertex-interpolation.html" class="current">4. Interpolated</a>
+    <a href="5-custom-interpolation.html">5. Do-it-yourself interpolation</a>
+  </nav>
+
+  <canvas id="c"></canvas>
+
+  <div class="caption">
+      <h1>4. One color per cube corner (interpolated)</h1>
+      <p>Each of the 8 cube corners has its own color, so the three
+      vertices of a triangle now <b>differ</b>. For every fragment
+      (candidate pixel) the rasterizer interpolates them using <b>barycentric coordinates</b>:
+      color&nbsp;=&nbsp;λ<sub>0</sub>C<sub>0</sub>&nbsp;+&nbsp;λ<sub>1</sub>C<sub>1</sub>&nbsp;+&nbsp;λ<sub>2</sub>C<sub>2</sub>,
+      with λ<sub>0</sub>&nbsp;+&nbsp;λ<sub>1</sub>&nbsp;+&nbsp;λ<sub>2</sub>&nbsp;=&nbsp;1.</p>
+      <p>The same interpolation happened in tabs 2 and 3. Here you can finally
+      <b>see</b> it. Look for a faint diagonal on each face where its two
+      triangles meet.</p>
+  </div>
+
+  <!-- Each page loads exactly one program. -->
+  <script src="4-vertex-interpolation.js"></script>
+</body>
+</html>

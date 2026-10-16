@@ -1,0 +1,67 @@
+<!doctype html>
+<!--
+  Ways to Color a Cube - page 2 of 5.
+  The five .html pages are identical except for: which tab is
+  highlighted, the caption, and which <script> they load.
+  (Page 5 also has a small menu for picking the interpolation rule.)
+  Open this file directly in a browser; no server is needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube Coloring 2: Solid (Attribute)</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #1e1e1e;
+      color: #ddd;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    /* The tab bar: five plain links, the current page highlighted. */
+    nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 8px 0; background: #111; }
+    nav a {
+      padding: 8px 16px;
+      color: #aaa;
+      text-decoration: none;
+      border-radius: 6px 6px 0 0;
+      background: #2a2a2a;
+    }
+    nav a:hover { color: #fff; }
+    nav a.current { background: #1e1e1e; color: #fff; font-weight: bold; }
+    /* The canvas fills the remaining space; JS matches its pixel size. */
+    canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+    .caption { padding: 4px 16px 12px; max-width: 70ch; line-height: 1.4; }
+    .caption h1 { font-size: 1.1rem; margin: 8px 0; }
+    .caption p { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="1-solid-uniform.html">1. Solid (uniform)</a>
+    <a href="2-solid-attribute.html" class="current">2. Solid (attribute)</a>
+    <a href="3-face-colors.html">3. Face colors</a>
+    <a href="4-vertex-interpolation.html">4. Interpolated</a>
+    <a href="5-custom-interpolation.html">5. Do-it-yourself interpolation</a>
+  </nav>
+
+  <canvas id="c"></canvas>
+
+  <div class="caption">
+      <h1>2. One solid color, as an attribute</h1>
+      <p>Exactly the same picture as tab 1, but the code is different: the
+      color is now an <b>attribute</b>, stored with every one of the 36
+      vertices. The rasterizer interpolates the three vertex colors of every
+      triangle, but interpolating three identical colors gives back the
+      same color, so the whole cube is one color.</p>
+      <p>Why the longer way? Now each vertex <b>can</b> have its own color.
+      Tabs 3 and 4 use this exact code with different colors.</p>
+  </div>
+
+  <!-- Each page loads exactly one program. -->
+  <script src="2-solid-attribute.js"></script>
+</body>
+</html>

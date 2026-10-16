@@ -1,0 +1,67 @@
+<!doctype html>
+<!--
+  Ways to Color a Cube - page 3 of 5.
+  The five .html pages are identical except for: which tab is
+  highlighted, the caption, and which <script> they load.
+  (Page 5 also has a small menu for picking the interpolation rule.)
+  Open this file directly in a browser; no server is needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube Coloring 3: Face colors</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #1e1e1e;
+      color: #ddd;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    /* The tab bar: five plain links, the current page highlighted. */
+    nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 8px 0; background: #111; }
+    nav a {
+      padding: 8px 16px;
+      color: #aaa;
+      text-decoration: none;
+      border-radius: 6px 6px 0 0;
+      background: #2a2a2a;
+    }
+    nav a:hover { color: #fff; }
+    nav a.current { background: #1e1e1e; color: #fff; font-weight: bold; }
+    /* The canvas fills the remaining space; JS matches its pixel size. */
+    canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+    .caption { padding: 4px 16px 12px; max-width: 70ch; line-height: 1.4; }
+    .caption h1 { font-size: 1.1rem; margin: 8px 0; }
+    .caption p { margin: 6px 0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="1-solid-uniform.html">1. Solid (uniform)</a>
+    <a href="2-solid-attribute.html">2. Solid (attribute)</a>
+    <a href="3-face-colors.html" class="current">3. Face colors</a>
+    <a href="4-vertex-interpolation.html">4. Interpolated</a>
+    <a href="5-custom-interpolation.html">5. Do-it-yourself interpolation</a>
+  </nav>
+
+  <canvas id="c"></canvas>
+
+  <div class="caption">
+      <h1>3. One color per face</h1>
+      <p>All 6 vertices of a face carry the face's color, and every face
+      gets a <b>different</b> color. Inside each triangle the three vertex
+      colors are equal, so the result is constant and each face is solid.
+      The color changes sharply at the edges.</p>
+      <p>A cube corner touches 3 faces that want 3 different colors, so
+      each corner is stored 3 times. That is why there are 36 vertices,
+      not 8.</p>
+  </div>
+
+  <!-- Each page loads exactly one program. -->
+  <script src="3-face-colors.js"></script>
+</body>
+</html>

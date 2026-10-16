@@ -1,0 +1,84 @@
+<!doctype html>
+<!--
+  Ways to Color a Cube - page 5 of 5.
+  The five .html pages are identical except for: which tab is
+  highlighted, the caption, and which <script> they load.
+  (Page 5 also has a small menu for picking the interpolation rule.)
+  Open this file directly in a browser; no server is needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube Coloring 5: Do-It-Yourself Interpolation</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #1e1e1e;
+      color: #ddd;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    /* The tab bar: five plain links, the current page highlighted. */
+    nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 8px 0; background: #111; }
+    nav a {
+      padding: 8px 16px;
+      color: #aaa;
+      text-decoration: none;
+      border-radius: 6px 6px 0 0;
+      background: #2a2a2a;
+    }
+    nav a:hover { color: #fff; }
+    nav a.current { background: #1e1e1e; color: #fff; font-weight: bold; }
+    /* The canvas fills the remaining space; JS matches its pixel size. */
+    canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+    .caption { padding: 4px 16px 12px; max-width: 70ch; line-height: 1.4; }
+    .caption h1 { font-size: 1.1rem; margin: 8px 0; }
+    .caption p { margin: 6px 0; }
+    /* The interpolation-rule menu (only on this page). */
+    .caption label { font-weight: bold; }
+    .caption select { font: inherit; padding: 2px 4px; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="1-solid-uniform.html">1. Solid (uniform)</a>
+    <a href="2-solid-attribute.html">2. Solid (attribute)</a>
+    <a href="3-face-colors.html">3. Face colors</a>
+    <a href="4-vertex-interpolation.html">4. Interpolated</a>
+    <a href="5-custom-interpolation.html" class="current">5. Do-it-yourself interpolation</a>
+  </nav>
+
+  <canvas id="c"></canvas>
+
+  <div class="caption">
+      <h1>5. Do-it-yourself interpolation</h1>
+      <p>Same colors as tab 4, but this time the <b>fragment
+      shader</b> does the interpolation. Each vertex carries its barycentric
+      coordinates, (1,0,0), (0,1,0) or (0,0,1), plus all three vertex colors
+      of its triangle. So every fragment (candidate pixel) receives its
+      own weights λ<sub>0</sub>,&nbsp;λ<sub>1</sub>,&nbsp;λ<sub>2</sub> and the three
+      colors, and mixes them however it likes.</p>
+      <p>
+        <!-- The JS reads this menu's value every frame and sends it to
+             the shader as uMode. To add a rule, add an <option> here
+             and a matching case in interpolate() in 5-custom-interpolation.js. -->
+        <label for="mode">Interpolation rule:</label>
+        <select id="mode">
+          <option value="0">0. Linear (same as tab 4)</option>
+          <option value="1">1. Nearest vertex</option>
+          <option value="2">2. Sharpened</option>
+          <option value="3">3. Bands</option>
+          <option value="4">4. Wireframe</option>
+        </select>
+      </p>
+      <p>Try "Nearest vertex" or "Wireframe" to see the two triangles on
+      each face. Then write your own rule in <code>interpolate()</code>.</p>
+  </div>
+
+  <!-- Each page loads exactly one program. -->
+  <script src="5-custom-interpolation.js"></script>
+</body>
+</html>

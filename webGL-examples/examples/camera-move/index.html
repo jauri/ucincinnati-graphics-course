@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<!--
+  index.html — the web page that hosts our WebGL drawing.
+
+  A WebGL program needs only two things from the page:
+    1. A <canvas> element: the rectangle of pixels we will draw into.
+    2. A <script> that grabs that canvas and does the drawing (index.js).
+
+  There are NO libraries here. Everything (including the matrix math for the
+  camera) is written by hand in index.js so you can see every step.
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WebGL Camera Orbit</title>
+  <style>
+    /* Remove the default page margin so the canvas can fill the window. */
+    html, body { margin: 0; height: 100%; background: #000; }
+
+    /* "display: block" removes a small gap browsers leave under inline
+       elements. 100% width/height stretches the canvas over the window.
+       NOTE: this only sets the canvas's size ON SCREEN. The number of pixels
+       WebGL actually draws is set separately in index.js (see resizeCanvas). */
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <!-- The drawing surface. index.js finds it by its id, "glcanvas". -->
+  <canvas id="glcanvas"></canvas>
+
+  <!-- Load our program. It is placed at the end of <body> so that the canvas
+       above already exists by the time the script runs. -->
+  <script src="index.js"></script>
+</body>
+</html>
