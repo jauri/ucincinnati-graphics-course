@@ -271,9 +271,8 @@ const uColor = gl.getUniformLocation(program, 'uColor');
 //    The cubes are laid out in a GRID_SIZE × GRID_SIZE grid on the
 //    ground plane (y = 0), centered on the origin.
 // ---------------------------------------------------------------------
-// const GRID_SIZE = 1000;   //bigger
 const GRID_SIZE = 10;    // 10 × 10 = 100 cubes
-const SPACING = 1.0;    // distance between cube ce// nters
+const SPACING = 1.0;    // distance between cube centers
 
 const cubes = [];
 for (let row = 0; row < GRID_SIZE; row++) {

@@ -272,9 +272,6 @@ leads to the old start screen, which has a "Back to explore the code" button.
 
 ## Open issues / things to check
 
-- `index.js` section 3: `GRID_SIZE = 1000` makes 1,000,000 cubes, which is one
-  draw call each and very slow. The comment still says "10 × 10 = 100 cubes".
-  The original value was `10` (`SPACING` was `1.5`, now `1.0`).
 - `index.js` section 5: the camera is now `lookAt([56, 56, 72], [50, 0, 50], ...)`,
   but the grid is centered on the origin. The original was
   `lookAt([14, 14, 18], [0, 0, 0], [0, 1, 0])`.
@@ -286,7 +283,6 @@ leads to the old start screen, which has a "Back to explore the code" button.
   file are untracked.
 - Read through the exploration notes in `quiz-selfcheck/explore-notes.js`
   and check the wording and links fit the course.
-- `index.js` line with `SPACING` has a typo in its comment ("ce// nters").
 - `quiz-selfcheck/`: try drag-and-drop by hand, and read through the 60
   questions to check that the wording fits the course.
 - `index.js` (line 50, `aNormal`) and `quiz/cards.js` still describe the vertex
@@ -317,3 +313,15 @@ GLSL syntax highlighting instead of one plain string color.
   `notes/quizzes.md` now strips `/* ... */` comments too.
 - This is a trial in cube-grid only. See `notes/NOTES.md` for why the
   shaders stay inline instead of moving to separate files.
+
+## 2026-10-16: grid size and section 3 comments
+
+- `GRID_SIZE` set back to `10` (it had been raised as an experiment; 1000
+  gives 1,000,000 cubes, one draw call each, and is very slow). It now
+  matches its "10 × 10 = 100 cubes" comment and the quiz.
+- Removed the leftover commented-out `GRID_SIZE = 1000` line.
+- Fixed the `SPACING` comment typo ("ce// nters" → "centers").
+- The quiz copies weren't changed (the exploration page hides comments).
+  Reran checks a and b from `notes/quizzes.md`: all 12 cards match, and
+  the exploration code still matches `index.js`.
+- Removing a line moved every later line in `index.js` up by one.

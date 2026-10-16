@@ -35,19 +35,14 @@ animation). WebGL 1 for now (see the root `CLAUDE.md`). History is in
 
 ## Open issues
 - The line numbers below are out of date: the 2026-10-16 GLSL markers
-  moved them. `aNormal` is now line 55, `GRID_SIZE = 1000` line 274, and
-  `SPACING` line 276. The instructor hasn't decided yet whether to update
-  the numbers or describe the lines by their content.
+  moved them. `aNormal` is now line 55. The instructor hasn't decided yet
+  whether to update the numbers or describe the lines by their content.
 - Fragment shader comment (line 84): "The GPU blends vNormal" and
   "EVERY PIXEL" break the terminology rules ("the rasterizer
   interpolates", "fragment").
 - `index.js` line 50: the `aNormal` comment still says "direction the face
   is pointing". The quiz was corrected to per-vertex normals; `index.js`
   wasn't.
-- `index.js` line 270: the `SPACING` comment has a typo ("ce// nters").
-  Because of the `//` in the middle, check the quiz checks still pass after
-  fixing it.
-- `index.js` line 268 has a commented-out `GRID_SIZE = 1000` experiment.
 - Not checked by a person yet: the wording of the 60 questions and the
   exploration notes, and drag-and-drop in the matching step (by hand).
 
