@@ -272,7 +272,7 @@ const uColor = gl.getUniformLocation(program, 'uColor');
 //    ground plane (y = 0), centered on the origin.
 // ---------------------------------------------------------------------
 // const GRID_SIZE = 1000;   //bigger
-const GRID_SIZE = 2400;    // 10 × 10 = 100 cubes
+const GRID_SIZE = 10;    // 10 × 10 = 100 cubes
 const SPACING = 1.0;    // distance between cube ce// nters
 
 const cubes = [];
