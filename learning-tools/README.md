@@ -1,0 +1,19 @@
+# Learning Tools
+
+Interactive tools for a computer graphics course. Students change the
+inputs and see the result right away. Each tool is plain JavaScript and
+the Canvas 2D API, with no libraries and no build step.
+
+## Running the tools
+Open the tool's `index.html` in a browser. Double-clicking it is enough;
+no web server is needed.
+
+## Tools
+
+| Tool | What it shows | Open |
+|---|---|---|
+| [bezier-curve-playground-2d](bezier-curve-playground-2d/) | Quadratic and cubic Bézier curves: click to place control points, drag them, see the control polygon (end tangents), the de Casteljau construction, and the tangent at any t | `index.html` |
+
+## For instructors and Claude
+- `CLAUDE.md`: conventions for all tools
+- `<tool>/CLAUDE.md` and `NOTES.md`: per-tool details and history

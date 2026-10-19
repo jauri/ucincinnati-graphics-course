@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--
+  index.html — the page for the 2D Bézier curve playground.
+
+  The page has two parts:
+    1. A side panel with the controls: curve type, the t slider, a Clear
+       button, and a readout of the coordinates.
+    2. A <canvas> where index.js draws the control points, the curve, and
+       the construction lines. Everything is drawn with the Canvas 2D API
+       (no WebGL, no libraries).
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bézier Curve Playground</title>
+  <style>
+    /* Remove the default page margin so the layout can fill the window. */
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: #222; background: #f4f4f4; }
+
+    /* Side panel on the left, canvas filling the rest. */
+    body { display: flex; }
+    #panel { width: 290px; flex: none; padding: 16px; box-sizing: border-box; overflow-y: auto; background: #fff; border-right: 1px solid #ddd; }
+    #canvas-wrap { flex: 1; position: relative; min-width: 0; }
+
+    /* "display: block" removes a small gap browsers leave under inline
+       elements. 100% width/height stretches the canvas over its area.
+       NOTE: this only sets the canvas's size ON SCREEN. The number of pixels
+       we actually draw is set separately in index.js (see resizeCanvas). */
+    canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+    h1 { font-size: 1.15rem; margin: 0 0 12px; }
+    h2 { font-size: 0.95rem; margin: 18px 0 6px; }
+    p, li { font-size: 0.85rem; line-height: 1.4; }
+    ul { padding-left: 18px; margin: 4px 0; }
+    label { font-size: 0.9rem; }
+    button { font: inherit; font-size: 0.9rem; padding: 4px 12px; }
+    input[type="range"] { width: 100%; }
+    #status { font-weight: 600; }
+    #readout { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; white-space: pre; background: #f6f6f6; padding: 8px; border-radius: 4px; }
+
+    /* Small color swatches for the legend, matching the colors in index.js. */
+    .swatch { display: inline-block; width: 22px; height: 0; border-top-width: 2px; vertical-align: middle; margin-right: 6px; }
+    .legend li { list-style: none; margin-left: -18px; }
+
+    /* On narrow screens, put the panel above the canvas. */
+    @media (max-width: 700px) {
+      body { flex-direction: column; }
+      #panel { width: 100%; border-right: none; border-bottom: 1px solid #ddd; max-height: 45%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h1>Bézier Curve Playground</h1>
+
+    <h2>1. Curve type</h2>
+    <label><input type="radio" name="degree" value="2"> Quadratic (3 points)</label><br>
+    <label><input type="radio" name="degree" value="3" checked> Cubic (4 points)</label>
+
+    <h2>2. Control points</h2>
+    <p id="status"></p>
+    <ul>
+      <li>Click on the canvas to place the control points in order (P0, P1, …).</li>
+      <li>Drag a point to move it.</li>
+    </ul>
+    <button id="clear">Clear points</button>
+
+    <h2>3. Parameter t</h2>
+    <label for="t-slider">t = <span id="t-value">0.50</span></label>
+    <input id="t-slider" type="range" min="0" max="1" step="0.01" value="0.5">
+    <label><input id="show-construction" type="checkbox" checked> Show de Casteljau construction</label><br>
+    <label><input id="show-tangent" type="checkbox" checked> Show tangent at t</label>
+
+    <h2>Legend</h2>
+    <ul class="legend">
+      <li><span class="swatch" style="border-top: 2px dashed #888"></span>Control polygon (end segments are the end tangents)</li>
+      <li><span class="swatch" style="border-top: 3px solid #1f5fbf"></span>Bézier curve</li>
+      <li><span class="swatch" style="border-top: 2px solid #e08a00"></span>de Casteljau construction</li>
+      <li><span class="swatch" style="border-top: 2px dotted #c0262d"></span>Tangent at t</li>
+    </ul>
+
+    <h2>Coordinates</h2>
+    <p>Canvas pixels: origin at the top-left, y grows downward.</p>
+    <div id="readout"></div>
+  </div>
+
+  <div id="canvas-wrap">
+    <!-- The drawing surface. index.js finds it by its id, "canvas". -->
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- Load our program. It is placed at the end of <body> so that the
+       elements above already exist by the time the script runs. -->
+  <script src="index.js"></script>
+</body>
+</html>
