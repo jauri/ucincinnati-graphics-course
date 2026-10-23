@@ -13,6 +13,7 @@ no web server is needed.
 | Tool | What it shows | Open |
 |---|---|---|
 | [bezier-curve-playground-2d](bezier-curve-playground-2d/) | Quadratic and cubic Bézier curves: click to place control points, drag them, see the control polygon (end tangents), the de Casteljau construction, and the tangent at any t | `index.html` |
+| [bezier-subdivision-guided](bezier-subdivision-guided/) | A guided activity: students cut a cubic Bézier curve in two with midpoints (de Casteljau at t = ½), find the control points of the pieces, compare stopping rules, trace the recursion, and write the algorithm in pseudocode | `index.html` |
 
 ## For instructors and Claude
 - `CLAUDE.md`: conventions for all tools

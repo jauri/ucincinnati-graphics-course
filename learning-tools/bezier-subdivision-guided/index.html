@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!--
+  index.html — the page for the guided activity "Cutting a Bézier curve in
+  two" (recursive subdivision with de Casteljau's algorithm).
+
+  The page has two parts:
+    1. A side panel that shows one step of the activity at a time: the
+       text, the question or task, feedback, and the Next button. Below the
+       step is the de Casteljau triangle, which fills in as points are built.
+    2. A <canvas> where index.js draws the curve and everything the student
+       constructs. The student also clicks on the canvas to place points.
+
+  Files:
+    stages.js  the activity's content (text, questions, answers, hints)
+    index.js   the engine that shows the steps and draws the canvas
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cutting a Bézier Curve</title>
+  <style>
+    /* Remove the default page margin so the layout can fill the window. */
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: #222; background: #f4f4f4; }
+
+    /* Side panel on the left, canvas filling the rest. */
+    body { display: flex; }
+    #panel { width: 380px; flex: none; padding: 16px; box-sizing: border-box; overflow-y: auto; background: #fff; border-right: 1px solid #ddd; }
+    #canvas-wrap { flex: 1; position: relative; min-width: 0; }
+    body.wide #panel { width: 540px; }  /* Stage 8: room for pseudocode. */
+
+    /* The canvas's size ON SCREEN. The number of pixels we draw is set
+       separately in index.js (see resizeCanvas). */
+    canvas { display: block; width: 100%; height: 100%; cursor: crosshair; }
+
+    h1 { font-size: 1.15rem; margin: 0 0 4px; }
+    h2 { font-size: 1rem; margin: 12px 0 6px; }
+    h3 { font-size: 0.9rem; margin: 16px 0 6px; }
+    p, li { font-size: 0.88rem; line-height: 1.45; }
+    button { font: inherit; font-size: 0.88rem; padding: 4px 12px; }
+    button:disabled { opacity: 0.45; }
+
+    /* Stage buttons and the progress bar at the top of the panel. */
+    #stage-nav { display: flex; gap: 4px; align-items: center; font-size: 0.8rem; color: #666; margin-bottom: 6px; }
+    #stage-nav button { font-size: 0.8rem; padding: 1px 8px; }
+    #stage-nav button.current { font-weight: 700; border-color: #1f5fbf; }
+    #progress { height: 4px; background: #eee; border-radius: 2px; margin-bottom: 4px; }
+    #progress-bar { height: 100%; background: #1f5fbf; border-radius: 2px; width: 0; }
+
+    /* The step's question, choices, and feedback. */
+    .question { font-weight: 600; }
+    .choice { display: block; width: 100%; text-align: left; margin: 6px 0; padding: 6px 10px; background: #fafafa; border: 1px solid #ccc; border-radius: 4px; }
+    .choice.right { background: #e6f4ea; border-color: #2e8b57; }
+    .choice.wrong { background: #fdecea; border-color: #c0262d; }
+    .why { font-size: 0.82rem; margin: 2px 0 8px 10px; color: #444; }
+    .feedback { background: #f6f6f6; border-left: 3px solid #999; padding: 6px 10px; margin: 10px 0; }
+    .feedback.good { border-left-color: #2e8b57; }
+    .feedback.bad { border-left-color: #c0262d; }
+    .feedback p { margin: 4px 0; }
+    .box { background: #f6f6f6; padding: 8px 10px; border-radius: 4px; font-size: 0.86rem; line-height: 1.45; white-space: pre-wrap; }
+    .row { display: flex; gap: 8px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+    input[type="range"] { flex: 1; }
+    #nav-row { display: flex; justify-content: flex-end; margin-top: 14px; }
+    label.block { display: block; margin: 4px 0; }
+
+    /* Code: the midpoint equation, the call stack, the pseudocode. */
+    .code, code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; }
+    pre.box { white-space: pre; overflow-x: auto; margin: 4px 0; }
+
+    /* The Parsons problem: one line per row, with up/down buttons. */
+    .parsons { padding-left: 0; list-style: none; }
+    .parsons li { display: flex; align-items: center; gap: 4px; margin: 3px 0; padding: 2px 4px; border: 1px solid #ddd; border-radius: 4px; background: #fafafa; }
+    .parsons li.right { background: #e6f4ea; border-color: #2e8b57; }
+    .parsons li.wrong { background: #fdecea; border-color: #c0262d; }
+    .parsons button { padding: 0 6px; font-size: 0.8rem; }
+    .parsons code { white-space: pre; overflow-x: auto; }
+
+    /* The de Casteljau triangle: 7 columns, so each row sits between the
+       points of the row above it. */
+    #triangle { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; text-align: center; }
+    #triangle span { padding: 2px 0; border-radius: 3px; }
+    #triangle .empty { color: #bbb; }
+    #triangle .L { background: #ece1f7; color: #5b2a99; font-weight: 700; }
+    #triangle .R { background: #dff1e6; color: #176b3a; font-weight: 700; }
+    #triangle .LR { background: linear-gradient(90deg, #ece1f7 50%, #dff1e6 50%); font-weight: 700; }
+
+    /* On narrow screens, put the panel above the canvas. */
+    @media (max-width: 760px) {
+      body { flex-direction: column; }
+      #panel, body.wide #panel { width: 100%; border-right: none; border-bottom: 1px solid #ddd; max-height: 55%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h1>Cutting a Bézier Curve in Two</h1>
+    <div id="stage-nav"></div>
+    <div id="progress"><div id="progress-bar"></div></div>
+
+    <h2 id="step-title"></h2>
+    <div id="step-body"></div>
+    <div id="nav-row"><button id="next">Next</button></div>
+
+    <div id="triangle-wrap">
+      <h3>The de Casteljau triangle</h3>
+      <div id="triangle"></div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <!-- The drawing surface. index.js finds it by its id, "canvas". -->
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <!-- stages.js must load first: index.js uses the STEPS it defines. -->
+  <script src="stages.js"></script>
+  <script src="index.js"></script>
+</body>
+</html>
