@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<!--
+  index.html — the page for the WebGL buffer playground.
+
+  The page has two parts:
+    1. A side panel with the controls. Each control is one argument of a
+       WebGL call: which buffer is bound, the size / stride / offset given
+       to vertexAttribPointer, and the arguments of the draw call.
+    2. The main area, with five views of the same draw:
+         - Memory:  the bytes in each buffer, and which bytes each
+                    attribute reads for each vertex (Canvas 2D, drawn by
+                    our own JavaScript copy of the GPU's rules).
+         - Result:  what real WebGL 2 draws with exactly these calls.
+         - Vertex shader inputs: the values each vertex receives.
+         - WebGL state: asked from WebGL itself after the calls ran.
+         - The calls that ran, with any errors WebGL reported.
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebGL Buffer Playground</title>
+  <style>
+    /* Remove the default page margin so the layout can fill the window. */
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: #222; background: #f4f4f4; }
+
+    /* Side panel on the left, main area filling the rest. Each one
+       scrolls on its own. */
+    body { display: flex; }
+    #panel { width: 310px; flex: none; padding: 16px; box-sizing: border-box; overflow-y: auto; background: #fff; border-right: 1px solid #ddd; }
+    #main { flex: 1; min-width: 0; overflow-y: auto; padding: 12px 16px 24px; box-sizing: border-box; }
+
+    h1 { font-size: 1.15rem; margin: 0 0 8px; }
+    h2 { font-size: 0.95rem; margin: 18px 0 6px; }
+    #main h2 { margin: 4px 0 6px; }
+    p, li { font-size: 0.85rem; line-height: 1.4; }
+    ul { padding-left: 18px; margin: 4px 0; }
+    label { font-size: 0.85rem; }
+    button, select, input { font: inherit; font-size: 0.85rem; }
+    button { padding: 3px 10px; }
+    input[type="number"] { width: 4.5em; }
+    code, pre, .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    code { font-size: 0.8rem; }
+
+    /* One box per attribute in the side panel. The colored left border
+       matches the attribute's color in the memory picture. */
+    fieldset { border: 1px solid #ddd; border-left-width: 5px; border-radius: 4px; margin: 8px 0; padding: 6px 10px 8px; }
+    fieldset.aPosition { border-left-color: #1f5fbf; }
+    fieldset.aColor { border-left-color: #d0700a; }
+    fieldset.draw { border-left-color: #7b3fb5; }
+    legend { font-weight: 600; font-size: 0.85rem; }
+    .grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; margin-top: 4px; }
+    .hint { font-size: 0.75rem; color: #666; }
+    .call { font-size: 0.75rem; color: #444; margin: 2px 0 4px; word-break: break-word; }
+    #index-editor input { width: 3.2em; margin: 2px 2px 2px 0; }
+
+    /* Main area: white cards. */
+    section { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+    .row > section { margin-bottom: 0; }
+    #step-explain { font-size: 0.85rem; margin: 0 0 6px; }
+    #step-explain div { margin: 2px 0; }
+
+    /* "display: block" removes a small gap browsers leave under inline
+       elements. The memory canvas's height is set in index.js, because
+       it depends on how much data there is. */
+    canvas { display: block; }
+    #memory { width: 100%; }
+
+    /* The WebGL canvas and the 2D overlay sit exactly on top of each
+       other. The overlay labels the vertices; WebGL draws the triangles. */
+    #result-wrap { position: relative; width: 300px; height: 300px; border: 1px solid #ccc; }
+    #result-wrap canvas { position: absolute; left: 0; top: 0; width: 300px; height: 300px; }
+    #draw-report { font-size: 0.8rem; margin: 6px 0 0; max-width: 300px; }
+
+    table { border-collapse: collapse; font-size: 0.8rem; }
+    th, td { border-bottom: 1px solid #eee; padding: 3px 6px; text-align: left; white-space: nowrap; }
+    th { font-weight: 600; background: #fafafa; }
+    #inputs tr.vertex-row { cursor: pointer; }
+    #inputs tr.vertex-row:hover { background: #f3f3f3; }
+    #inputs tr.current { background: #fff3c4; }
+    #inputs tr.current:hover { background: #ffeaa0; }
+    .filled { color: #aaa; }   /* components WebGL filled in (not from the buffer) */
+    .bad { color: #c0262d; font-weight: 600; }
+    .ok { color: #1d7a34; }
+
+    /* The listing of calls. Errors appear on their own line under the call. */
+    #code { font-size: 0.8rem; line-height: 1.45; margin: 0; overflow-x: auto; }
+    #code .comment { color: #6a737d; }
+    #code .error { color: #c0262d; }
+    #code .fine { color: #1d7a34; }
+
+    /* On narrow screens, put the panel above the main area. */
+    @media (max-width: 800px) {
+      body { flex-direction: column; height: auto; }
+      #panel { width: 100%; border-right: none; border-bottom: 1px solid #ddd; }
+      #main { overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h1>WebGL Buffer Playground</h1>
+    <p>A buffer is just a row of bytes. WebGL has no idea which numbers are
+      positions or colors: <code>vertexAttribPointer</code> tells it how
+      to cut the bytes into one value per vertex. Change the arguments and
+      watch what gets read.</p>
+
+    <h2>1. Starting point</h2>
+    <select id="preset"></select>
+    <p id="preset-note" class="hint"></p>
+
+    <h2>2. Attributes</h2>
+
+    <fieldset class="aPosition">
+      <legend>aPosition</legend>
+      <label><input type="checkbox" id="aPosition-enabled"> enabled</label>
+      <div class="grid">
+        <label for="aPosition-buffer">buffer</label><select id="aPosition-buffer"></select>
+        <label for="aPosition-size">size</label><select id="aPosition-size"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+        <label for="aPosition-stride">stride</label><span><input type="number" id="aPosition-stride" min="0" max="300" step="1"> bytes</span>
+        <label for="aPosition-offset">offset</label><span><input type="number" id="aPosition-offset" min="0" max="400" step="1"> bytes</span>
+      </div>
+      <div class="hint" id="aPosition-hint"></div>
+    </fieldset>
+
+    <fieldset class="aColor">
+      <legend>aColor</legend>
+      <label><input type="checkbox" id="aColor-enabled"> enabled</label>
+      <div class="grid">
+        <label for="aColor-buffer">buffer</label><select id="aColor-buffer"></select>
+        <label for="aColor-size">size</label><select id="aColor-size"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+        <label for="aColor-stride">stride</label><span><input type="number" id="aColor-stride" min="0" max="300" step="1"> bytes</span>
+        <label for="aColor-offset">offset</label><span><input type="number" id="aColor-offset" min="0" max="400" step="1"> bytes</span>
+      </div>
+      <div class="hint" id="aColor-hint"></div>
+    </fieldset>
+    <p class="hint">When an attribute is disabled, every vertex gets the
+      same constant value instead (here gray: 0.6, 0.6, 0.6, 1).</p>
+
+    <h2>3. Draw call</h2>
+    <fieldset class="draw">
+      <legend>Draw</legend>
+      <label><input type="radio" name="draw-kind" value="arrays" id="kind-arrays"> <code>drawArrays</code></label><br>
+      <label><input type="radio" name="draw-kind" value="elements" id="kind-elements"> <code>drawElements</code> (uses the index buffer)</label>
+
+      <div id="arrays-controls" class="grid">
+        <label for="arrays-first">first</label><input type="number" id="arrays-first" min="0" max="60" step="1">
+        <label for="arrays-count">count</label><input type="number" id="arrays-count" min="0" max="60" step="1">
+      </div>
+
+      <div id="elements-controls">
+        <div class="grid">
+          <label for="elements-count">count</label><input type="number" id="elements-count" min="0" max="60" step="1">
+          <label for="elements-offset">offset</label><span><input type="number" id="elements-offset" min="0" max="120" step="1"> bytes</span>
+        </div>
+        <p class="hint">Index buffer values (each one is a vertex number):</p>
+        <div id="index-editor"></div>
+        <button id="index-add">Add index</button>
+        <button id="index-remove">Remove last</button>
+      </div>
+      <p class="hint" id="draw-hint"></p>
+    </fieldset>
+
+    <h2>4. Step through the vertices</h2>
+    <button id="step-prev">◀ Previous</button>
+    <button id="step-next">Next ▶</button>
+    <p id="step-label"></p>
+    <label><input type="checkbox" id="show-all" checked> Show the reads for every vertex</label>
+  </div>
+
+  <div id="main">
+    <section>
+      <h2>Memory: what the GPU reads for this vertex</h2>
+      <div id="step-explain"></div>
+      <canvas id="memory"></canvas>
+    </section>
+
+    <div class="row">
+      <section>
+        <h2>Result (real WebGL 2)</h2>
+        <div id="result-wrap">
+          <canvas id="gl-canvas"></canvas>
+          <canvas id="overlay"></canvas>
+        </div>
+        <p id="draw-report"></p>
+      </section>
+
+      <section>
+        <h2>Vertex shader inputs</h2>
+        <p class="hint">Click a row to select that vertex. Components the buffer
+          did not supply are filled in by WebGL with 0, 0, 0, 1
+          (<span class="filled">gray</span>).</p>
+        <div id="inputs"></div>
+      </section>
+
+      <section>
+        <h2>WebGL state</h2>
+        <p class="hint">Asked from WebGL after the calls ran
+          (<code>gl.getParameter</code>, <code>gl.getVertexAttrib</code>).</p>
+        <div id="state"></div>
+      </section>
+    </div>
+
+    <section style="margin-top: 12px">
+      <h2>The calls that ran</h2>
+      <pre id="code"></pre>
+    </section>
+  </div>
+
+  <!-- Load our program. It is placed at the end of <body> so that the
+       elements above already exist by the time the script runs. -->
+  <script src="index.js"></script>
+</body>
+</html>
