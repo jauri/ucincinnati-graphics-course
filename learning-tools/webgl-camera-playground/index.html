@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<!--
+  index.html — the page for the WebGL camera playground.
+
+  The page has two parts:
+    1. A side panel with the controls: a preset menu, sliders for the
+       three arguments of lookAt(eye, target, up), sliders for the lens
+       (field of view, near, far, aspect ratio), and sliders that only
+       move the world view.
+    2. The main area, with three views of the same camera:
+         - World view:  the scene seen from outside, with the camera, its
+                        axes, its up vector and its view frustum.
+         - Camera view: what the camera sees.
+         - The code:    the lines of WebGL code that set up this camera,
+                        with the current numbers.
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebGL Camera Playground</title>
+  <style>
+    /* Colors for the page, in light and dark mode. The 3D views always
+       have a dark background, so their colors are set in index.js. */
+    :root {
+      --bg: #f4f4f4; --card: #fff; --text: #222; --muted: #666; --border: #ddd;
+      --code-bg: #fafafa; --comment: #6a737d;
+      --x: #c62828; --y: #2e7d32; --z: #1565c0;    /* the camera axes */
+      --bad: #c0262d; --bad-bg: #fde8e8; --warn-bg: #fff6d6; --ok: #1d7a34;
+      --hl: #fff1a8;      /* linked highlighting */
+      --link: #0b5cad; --link-bg: #e3eefb; --chip-bg: #eceff3;
+      --flash: #ffd23f;   /* a number that just changed */
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #161616; --card: #1f1f1f; --text: #ddd; --muted: #9a9a9a; --border: #333;
+        --code-bg: #191919; --comment: #8b949e;
+        --x: #ff6b6b; --y: #5fd068; --z: #5aa9ff;
+        --bad: #ff6b6b; --bad-bg: #3a1c1c; --warn-bg: #3a3218; --ok: #5fd068;
+        --hl: #4a4220; --flash: #8a6d00;
+        --link: #7ab8ff; --link-bg: #1d2f45; --chip-bg: #2a2f36;
+      }
+    }
+
+    /* Side panel on the left, main area filling the rest. Each one
+       scrolls on its own. */
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: var(--text); background: var(--bg); }
+    body { display: flex; }
+    #panel { width: 320px; flex: none; padding: 16px; box-sizing: border-box; overflow-y: auto; background: var(--card); border-right: 1px solid var(--border); }
+    #main { flex: 1; min-width: 0; overflow-y: auto; padding: 12px 16px 24px; box-sizing: border-box; }
+
+    h1 { font-size: 1.15rem; margin: 0 0 8px; }
+    h2 { font-size: 0.95rem; margin: 18px 0 6px; }
+    #main h2 { margin: 2px 0 6px; }
+    p { font-size: 0.85rem; line-height: 1.4; }
+    label, select { font-size: 0.85rem; }
+    select { font: inherit; font-size: 0.85rem; max-width: 100%; }
+    code, .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    code { font-size: 0.8rem; }
+    .hint { font-size: 0.78rem; color: var(--muted); }
+
+    /* One box per group of sliders. */
+    fieldset { border: 1px solid var(--border); border-radius: 4px; margin: 8px 0; padding: 4px 10px 8px; }
+    legend { font-weight: 600; font-size: 0.85rem; }
+    /* One row per slider: name, slider, value. The row is what lights up
+       when its code line or world-view object is highlighted. */
+    .slider-row { display: grid; grid-template-columns: 7.5em 1fr 3.2em; gap: 6px; align-items: center; padding: 1px 4px; border-radius: 3px; }
+    .slider-row input { width: 100%; margin: 0; }
+    .slider-row .value { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; text-align: right; }
+    .slider-row.hl { background: var(--hl); }
+
+    /* The "camera check" box: green, yellow or red. */
+    #check { font-size: 0.82rem; line-height: 1.4; padding: 6px 8px; border-radius: 4px; border: 1px solid var(--border); margin: 8px 0; }
+    #check.ok { border-left: 4px solid var(--ok); }
+    #check.warn { background: var(--warn-bg); border-left: 4px solid #d9a400; }
+    #check.bad { background: var(--bad-bg); border-left: 4px solid var(--bad); }
+
+    /* Main area: cards. The two views sit side by side and wrap on
+       narrow screens. */
+    section { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; box-sizing: border-box; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .row > section { flex: 1 1 340px; min-width: 0; }
+
+    /* Each 3D view keeps a 4 : 3 shape. In the world view, a 2D canvas
+       (the overlay) sits exactly on top of the WebGL canvas: WebGL draws
+       the boxes, the overlay draws the arrows, lines and labels. */
+    .view-wrap { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 4px; overflow: hidden; background: #1a1e28; }
+    .view-wrap canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+    #camera-message { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center; padding: 20px; color: #ffb3b3; font-size: 0.9rem; line-height: 1.4; }
+
+    /* The key under the world view. */
+    .key { font-size: 0.78rem; color: var(--muted); margin: 6px 0 0; line-height: 1.6; }
+    .key span { white-space: nowrap; margin-right: 10px; }
+    .swatch { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+
+    /* The code panel. Each line is a <div class="line">. A line that
+       belongs to a slider or a world-view object has data-link. */
+    #code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 0; overflow-x: auto; }
+    .line { white-space: pre; padding: 0 10px; }
+    .line[data-link]:hover, .line.hl { background: var(--hl); }
+    .line.bad { color: var(--bad); }
+    .comment { color: var(--comment); }
+    .line.bad .comment { color: var(--bad); }
+    /* A function name that opens the definition panel. */
+    .fn { color: var(--link); text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+    .fn:hover { text-decoration-style: solid; }
+    .fn.open { text-decoration-style: solid; background: var(--link-bg); border-radius: 2px; }
+
+    /* The code and the definition panel side by side; the panel wraps
+       below the code when there isn't room for both. */
+    .code-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+    .code-col { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+    #detail { flex: 1 1 600px; min-width: 0; box-sizing: border-box; border: 1px solid var(--border); border-top: 4px solid var(--link); border-radius: 4px; padding: 8px 12px 10px; background: var(--card); }
+    #detail[hidden] { display: none; }
+    .detail-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .detail-head h3 { font-size: 0.9rem; margin: 0; }
+    .close { font: inherit; border: none; background: none; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
+    .close:hover { color: var(--text); }
+    .detail-where, .detail-sub, .detail-note { font-size: 0.8rem; color: var(--muted); margin: 4px 0 8px; line-height: 1.4; }
+    .detail-note { margin-top: 8px; color: var(--text); }
+    .bad-text { color: var(--bad); }
+    /* A definition: code on the left, the values beside it. */
+    .def { display: grid; grid-template-columns: max-content 1fr; background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 4px 0; overflow-x: auto; }
+    .def-row { display: contents; }
+    .def-code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.78rem; line-height: 1.6; white-space: pre; padding: 0 12px 0 8px; }
+    .def-val { padding: 1px 8px; border-left: 1px solid var(--border); display: flex; gap: 3px; align-items: center; white-space: nowrap; }
+    .def-row[data-link]:hover > div, .def-row.hl > div { background: var(--hl); }
+    .def-row.bad .def-code { color: var(--bad); }
+    /* A value chip: clearly a value, not code. */
+    .chip { font-size: 0.74rem; font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--chip-bg); border-radius: 10px; padding: 0 7px; line-height: 1.5; }
+    .chip-name { font-weight: 600; }
+    .chip.ax-x .chip-name { color: var(--x); }
+    .chip.ax-y .chip-name { color: var(--y); }
+    .chip.ax-z .chip-name { color: var(--z); }
+    .chip.ax-x, .chip.ax-y, .chip.ax-z { font-weight: normal; }
+    .chip.muted { background: none; color: var(--muted); }
+    .chip.bad { background: var(--bad-bg); color: var(--bad); white-space: normal; }
+    table.matrix { border-collapse: collapse; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+    table.matrix td { padding: 2px 8px; text-align: right; border-left: 1px solid var(--border); }
+    table.matrix td:first-child { border-left: 2px solid var(--muted); }
+    table.matrix td:nth-child(4) { border-right: 2px solid var(--muted); }
+    table.matrix th { font-weight: normal; text-align: left; color: var(--muted); padding-left: 12px; }
+    .ax-x { color: var(--x); font-weight: 600; }
+    .ax-y { color: var(--y); font-weight: 600; }
+    .ax-z { color: var(--z); font-weight: 600; }
+    /* A number that just changed lights up, then fades. */
+    .num.changed { animation: flash 0.7s ease-out; border-radius: 2px; }
+    @keyframes flash { from { background: var(--flash); } to { background: transparent; } }
+    #target-camera { font-size: 0.82rem; margin: 8px 0 0; }
+
+    /* On narrow screens, put the panel above the main area. */
+    @media (max-width: 800px) {
+      body { flex-direction: column; height: auto; }
+      #panel { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+      #main { overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h1>WebGL Camera Playground</h1>
+    <p>A camera is set up with two matrices. The <b>view matrix</b> comes
+      from <code>lookAt(eye, target, up)</code>: where the camera is, the
+      point it looks at, and which way is up. The <b>projection
+      matrix</b> is the lens. Move the sliders and watch the camera, the
+      picture and the code change together.</p>
+
+    <h2>1. Starting point</h2>
+    <select id="preset"></select>
+    <p id="preset-note" class="hint"></p>
+    <div id="check"></div>
+
+    <h2>2. The view matrix: <code>lookAt</code></h2>
+    <fieldset><legend>eye (where the camera is)</legend><div id="sliders-eye"></div></fieldset>
+    <fieldset><legend>target (the point it looks at)</legend><div id="sliders-target"></div></fieldset>
+    <fieldset><legend>up vector</legend><div id="sliders-up"></div></fieldset>
+
+    <h2>3. The projection matrix: <code>perspective</code></h2>
+    <fieldset><legend>lens</legend>
+      <div id="sliders-lens"></div>
+      <div class="slider-row" data-link="aspect">
+        <label for="aspect">aspect ratio</label>
+        <select id="aspect" style="grid-column: span 2; width: 100%">
+          <option value="canvas">match the canvas</option>
+          <option value="1">1.0 (wrong: square)</option>
+          <option value="2">2.0 (wrong: too wide)</option>
+        </select>
+      </div>
+    </fieldset>
+
+    <h2>4. World view only</h2>
+    <p class="hint">These sliders only change where you look at the scene
+      from in the world view. They don't change the camera.</p>
+    <fieldset><legend>world view</legend><div id="sliders-world"></div></fieldset>
+  </div>
+
+  <div id="main">
+    <div class="row">
+      <section>
+        <h2>World view: the camera seen from outside</h2>
+        <div class="view-wrap">
+          <canvas id="world-gl"></canvas>
+          <canvas id="world-overlay"></canvas>
+        </div>
+        <p class="key">
+          <span><i class="swatch" style="background:#ff5a5a"></i>x axis (right)</span>
+          <span><i class="swatch" style="background:#4cd964"></i>y axis (up)</span>
+          <span><i class="swatch" style="background:#4da3ff"></i>z axis (backward)</span>
+          <span><i class="swatch" style="background:#f2f2f2; border:1px solid #888"></i>up vector</span>
+          <span><i class="swatch" style="background:repeating-linear-gradient(90deg,#f2c14e 0 4px,transparent 4px 7px)"></i>view direction (−z)</span>
+          <span><i class="swatch" style="background:#c8c8c8"></i>view frustum</span>
+          <span><i class="swatch" style="background:#9aa0a6"></i>world axes X, Y, Z</span>
+        </p>
+      </section>
+      <section>
+        <h2>Camera view: what the camera sees</h2>
+        <div class="view-wrap">
+          <canvas id="camera-gl"></canvas>
+          <div id="camera-message"></div>
+        </div>
+        <p class="key">Drawn with <code>gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0)</code>,
+          using the two matrices below.</p>
+      </section>
+    </div>
+
+    <section>
+      <h2>The code that sets up this camera</h2>
+      <p class="hint">The numbers follow the sliders. Hover over a line to
+        see its sliders and what it controls in the world view. Click a
+        function name with a dotted underline to see how it works.</p>
+      <div class="code-row">
+        <div class="code-col"><div id="code"></div></div>
+        <aside id="detail" hidden></aside>
+      </div>
+      <p id="target-camera"></p>
+    </section>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>
