@@ -16,6 +16,7 @@ no web server is needed.
 | [bezier-subdivision-guided](bezier-subdivision-guided/) | A guided activity: students cut a cubic Bézier curve in two with midpoints (de Casteljau at t = ½), find the control points of the pieces, compare stopping rules, trace the recursion, and write the algorithm in pseudocode | `index.html` |
 | [webgl-buffers-playground](webgl-buffers-playground/) | How WebGL reads vertex buffers: change the arguments of `bindBuffer`, `vertexAttribPointer`, `drawArrays` and `drawElements`, see which bytes each attribute reads for each vertex (offset + vertex × stride), the index buffer, WebGL's state and errors, and what real WebGL 2 draws | `index.html` |
 | [webgl-camera-playground](webgl-camera-playground/) | The WebGL camera: set `lookAt(eye, target, up)` and the lens (vertical field of view, aspect ratio, near, far) with sliders, see the camera from outside (its axes, up vector and view frustum) and what it sees, and the camera setup code with live numbers, including inside `lookAt`, `perspective`, and the 16 floats `uniformMatrix4fv` sends | `index.html` |
+| [triangle-drawing-modes](triangle-drawing-modes/) | Six ways to draw triangles in WebGL 2: `drawArrays` and `drawElements` with `TRIANGLES`, `TRIANGLE_STRIP` and `TRIANGLE_FAN`, each with its code, what WebGL draws, the vertices in clip space, and how the draw call groups the buffer (or index buffer) into triangles | `index.html` |
 
 ## For instructors and Claude
 - `CLAUDE.md`: conventions for all tools

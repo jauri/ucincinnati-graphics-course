@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<!--
+  index.html — the page for "Triangle Drawing Modes".
+
+  Six ways to draw triangles from a buffer in WebGL 2:
+  drawArrays and drawElements, each with TRIANGLES, TRIANGLE_STRIP and
+  TRIANGLE_FAN. For each case the page shows, side by side:
+    - The code: the complete calls, from making the buffers to the draw
+      call. This is the code that actually runs (see index.js).
+    - What WebGL draws, in a real WebGL 2 canvas.
+    - The vertices in clip space (SVG).
+    - The buffers, and how the draw call groups them into triangles (SVG).
+
+  The tabs show one case at a time; "Show all" puts all six on one page.
+  The sections are built by index.js, section 7.
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Triangle Drawing Modes</title>
+  <style>
+    body { margin: 0; padding: 16px 20px 32px; font-family: system-ui, sans-serif; color: #222; background: #f4f4f4; }
+    h1 { font-size: 1.3rem; margin: 0 0 6px; }
+    h2 { font-size: 1.05rem; margin: 0 0 6px; }
+    h3 { font-size: 0.85rem; margin: 0 0 6px; color: #444; }
+    p, li, td, th { font-size: 0.88rem; line-height: 1.45; }
+    code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    code { font-size: 0.82rem; }
+    .intro { max-width: 900px; margin: 4px 0 10px; }
+    .hint { font-size: 0.78rem; color: #666; margin: 6px 0 0; }
+    .ok { color: #1d7a34; }
+    .bad { color: #c0262d; font-weight: 600; }
+
+    /* The top: the 2 × 3 grid of tabs, and the summary table. */
+    #top { display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: flex-start; margin-bottom: 14px; }
+    /* On narrow screens, the tabs and the table scroll sideways in their own box. */
+    #top > div { max-width: 100%; overflow-x: auto; }
+    #tabs { border-collapse: separate; border-spacing: 4px; }
+    #tabs th { font-weight: 600; text-align: right; padding-right: 6px; }
+    #tabs thead th { text-align: center; padding: 0; }
+    #tabs button { font: inherit; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem;
+      width: 100%; padding: 6px 10px; border: 1px solid #bbb; border-radius: 5px; background: #fff; cursor: pointer; }
+    #tabs button:hover { background: #eef4fc; }
+    #tabs button.chosen { background: #1f5fbf; border-color: #1f5fbf; color: #fff; }
+    #show-all-label { display: block; margin: 6px 0 0 4px; font-size: 0.88rem; }
+
+    #summary { border-collapse: collapse; background: #fff; border: 1px solid #ddd; }
+    #summary th, #summary td { border-bottom: 1px solid #eee; padding: 4px 8px; text-align: left; white-space: nowrap; font-size: 0.8rem; }
+    #summary th { background: #fafafa; }
+    #summary tr[data-case] { cursor: pointer; }
+    #summary tr[data-case]:hover { background: #f3f3f3; }
+    #summary tr.chosen { background: #e3eefb; }
+    .summary-note { max-width: 520px; }
+
+    /* One section per case. In tab mode only the chosen one shows. */
+    .case { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px 14px; margin-bottom: 16px; display: none; }
+    .case.chosen, body.show-all .case { display: block; }
+    .explain { max-width: 900px; margin: 0 0 10px; }
+
+    /* Code on the left, spanning both rows; result and clip-space view on
+       the right, with the buffer view under them. */
+    .case-grid { display: grid; grid-template-columns: minmax(0, 520px) auto auto; gap: 14px; align-items: start; justify-content: start; }
+    .code-panel { grid-row: span 2; min-width: 0; }
+    .buffers-panel { grid-column: 2 / span 2; min-width: 0; }
+    .panel { min-width: 0; }
+
+    pre.code { margin: 0; padding: 8px 10px; background: #f8f8f8; border: 1px solid #e4e4e4; border-radius: 4px;
+      font-size: 0.74rem; line-height: 1.45; overflow-x: auto; }
+    pre.code .comment { color: #6a737d; }
+    pre.code .draw-line { font-weight: 700; background: #fff3c4; }
+
+    /* The WebGL canvas and the 2D outline canvas sit exactly on top of each other. */
+    .result-wrap { position: relative; width: 260px; height: 260px; border: 1px solid #ccc; }
+    .result-wrap canvas { position: absolute; left: 0; top: 0; width: 260px; height: 260px; display: block; }
+    .report { font-size: 0.8rem; max-width: 260px; margin: 6px 0 0; }
+
+    /* SVG pictures. They scale down to fit narrow screens. */
+    .coords svg, .buffers svg { display: block; max-width: 100%; height: auto; }
+    .buffers { overflow-x: auto; }
+    svg text { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .grid { stroke: #eee; stroke-width: 1; }
+    .axis { stroke: #aaa; stroke-width: 1; }
+    .tick { font-size: 9px; fill: #888; }
+    .tri { fill: #dbe9f7; stroke: #1f5fbf; stroke-width: 1.5; stroke-linejoin: round; cursor: pointer; }
+    .tri.hot { fill: #ffe08a; }
+    .tri-num { font-size: 12px; font-weight: 700; fill: #1f5fbf; pointer-events: none; }
+    .dot { fill: #1f5fbf; }
+    .dot.hot { fill: #d08a00; }
+    .vlabel { font-size: 10px; font-weight: 700; fill: #222; }
+    .vcoord { font-size: 9px; fill: #555; }
+
+    .row-label { font-size: 11px; font-weight: 700; fill: #333; }
+    .row-note { font-size: 9px; fill: #777; }
+    .box rect { fill: #fff; stroke: #999; }
+    .box.hot rect { fill: #fff3c4; stroke: #d08a00; stroke-width: 2; }
+    .box-head { font-size: 8.5px; fill: #777; }
+    .box-val { font-size: 10px; fill: #222; }
+    .box-big { font-size: 14px; font-weight: 700; fill: #222; }
+    .link { stroke: #c4c4c4; stroke-width: 1; }
+    .link.hot { stroke: #d08a00; stroke-width: 2.5; }
+    .trirow { cursor: pointer; }
+    .trirow rect { fill: #fafafa; }
+    .trirow.hot rect { fill: #fff3c4; }
+    .span { stroke: #1f5fbf; stroke-width: 2; opacity: 0.35; }
+    .use { fill: #1f5fbf; }
+    .use-num { font-size: 10px; font-weight: 700; fill: #fff; }
+    .tri-verts { font-size: 10.5px; fill: #333; }
+
+    /* On narrow screens, stack the panels. */
+    @media (max-width: 1100px) {
+      .case-grid { grid-template-columns: auto auto; }
+      .code-panel { grid-row: auto; grid-column: 1 / span 2; }
+      .buffers-panel { grid-column: 1 / span 2; }
+    }
+    @media (max-width: 640px) {
+      body { padding: 12px 16px 24px; }
+      .case-grid { grid-template-columns: minmax(0, 1fr); }
+      .code-panel, .buffers-panel { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Triangle Drawing Modes</h1>
+  <p class="intro">A draw call does two things. First it makes a list of vertex
+    numbers: <code>drawArrays</code> counts up through the vertex buffer,
+    and <code>drawElements</code> reads the numbers from an index buffer.
+    Then the <b>mode</b> groups that list into triangles:
+    <code>TRIANGLES</code> takes 3 at a time, <code>TRIANGLE_STRIP</code>
+    makes each new vertex a triangle with the 2 before it, and
+    <code>TRIANGLE_FAN</code> makes each new vertex a triangle with the
+    first vertex and the one before it.</p>
+
+  <div id="top">
+    <div>
+      <table id="tabs">
+        <thead>
+          <tr><td></td><th><code>TRIANGLES</code></th><th><code>TRIANGLE_STRIP</code></th><th><code>TRIANGLE_FAN</code></th></tr>
+        </thead>
+        <tbody>
+          <tr><th><code>drawArrays</code></th>
+            <td><button data-case="arrays-triangles">band of 3</button></td>
+            <td><button data-case="arrays-strip">band of 3</button></td>
+            <td><button data-case="arrays-fan">fan of 4</button></td></tr>
+          <tr><th><code>drawElements</code></th>
+            <td><button data-case="elements-triangles">band of 3</button></td>
+            <td><button data-case="elements-strip">band of 3</button></td>
+            <td><button data-case="elements-fan">fan of 4</button></td></tr>
+        </tbody>
+      </table>
+      <label id="show-all-label"><input type="checkbox" id="show-all"> Show all six on one page</label>
+    </div>
+    <div>
+      <table id="summary"></table>
+      <p class="hint summary-note">Each vertex here is 2 floats = 8 bytes; each
+        index is 2 bytes. With more attributes per vertex (colors, normals),
+        storing each corner once saves more.</p>
+    </div>
+  </div>
+
+  <div id="cases"></div>
+
+  <script src="index.js"></script>
+</body>
+</html>
