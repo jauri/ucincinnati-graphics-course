@@ -17,6 +17,7 @@ no web server is needed.
 | [webgl-buffers-playground](webgl-buffers-playground/) | How WebGL reads vertex buffers: change the arguments of `bindBuffer`, `vertexAttribPointer`, `drawArrays` and `drawElements`, see which bytes each attribute reads for each vertex (offset + vertex × stride), the index buffer, WebGL's state and errors, and what real WebGL 2 draws | `index.html` |
 | [webgl-camera-playground](webgl-camera-playground/) | The WebGL camera: set `lookAt(eye, target, up)` and the lens (vertical field of view, aspect ratio, near, far) with sliders, see the camera from outside (its axes, up vector and view frustum) and what it sees, and the camera setup code with live numbers, including inside `lookAt`, `perspective`, and the 16 floats `uniformMatrix4fv` sends | `index.html` |
 | [triangle-drawing-modes](triangle-drawing-modes/) | Six ways to draw triangles in WebGL 2: `drawArrays` and `drawElements` with `TRIANGLES`, `TRIANGLE_STRIP` and `TRIANGLE_FAN`, each with its code, what WebGL draws, the vertices in clip space, and how the draw call groups the buffer (or index buffer) into triangles | `index.html` |
+| [normal-matrix-scaling](normal-matrix-scaling/) | Why normals need the normal matrix: two spheres scaled by the same sliders, one transforming its normals with the model matrix and one with (M⁻¹)ᵀ, with the normals drawn and colored by their error, shading, the code for both, and a 7-step derivation of the inverse transpose | `index.html` |
 
 ## For instructors and Claude
 - `CLAUDE.md`: conventions for all tools

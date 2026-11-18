@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!--
+  index.html — the page for "Normals Under Non-Uniform Scaling".
+
+  Two spheres scaled by the same model matrix M = scale(sx, sy, sz),
+  with their vertex normals drawn. The left one transforms its normals
+  with the model matrix, the right one with the normal matrix (M⁻¹)ᵀ.
+  Below them is the code for both (the code that runs, see index.js);
+  beside them, a step-by-step explanation of the normal matrix.
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Normals Under Non-Uniform Scaling</title>
+  <style>
+    body { margin: 0; padding: 16px 20px 32px; font-family: system-ui, sans-serif; color: #222; background: #f4f4f4; }
+    h1 { font-size: 1.3rem; margin: 0 0 6px; }
+    h2 { font-size: 1.02rem; margin: 0 0 4px; }
+    h3 { font-size: 0.82rem; margin: 10px 0 4px; color: #444; }
+    p, li, td, th, label, select { font-size: 0.88rem; line-height: 1.45; }
+    code, pre { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    code { font-size: 0.82rem; }
+    .intro { max-width: 980px; margin: 4px 0 12px; }
+    .hint { font-size: 0.78rem; color: #666; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 12px 14px; min-width: 0; }
+
+    /* Wide: controls | views | steps, with the code under views and steps.
+       Medium: controls | views, then steps, then code.
+       Narrow: everything in one column. */
+    #layout { display: grid; gap: 14px; align-items: start;
+      grid-template-columns: 230px minmax(0, 1fr) 360px;
+      grid-template-areas: "controls views steps" "controls code code"; }
+    #controls { grid-area: controls; }
+    #views-card { grid-area: views; }
+    #steps { grid-area: steps; }
+    #code { grid-area: code; }
+    @media (max-width: 1250px) {
+      #layout { grid-template-columns: 230px minmax(0, 1fr);
+        grid-template-areas: "controls views" "controls steps" "controls code"; }
+    }
+    @media (max-width: 760px) {
+      body { padding: 12px 16px 24px; }
+      #layout { grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "controls" "views" "steps" "code"; }
+    }
+
+    /* Controls */
+    #controls h2 { margin-top: 12px; }
+    #controls h2:first-child { margin-top: 0; }
+    #controls select { width: 100%; margin: 2px 0 4px; font: inherit; font-size: 0.85rem; }
+    #preset-note { margin: 0 0 4px; min-height: 3.2em; }
+    .slider { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) 3.4em; gap: 6px; align-items: center; margin: 4px 0; }
+    .slider label { font-size: 0.85rem; }
+    .slider input { width: 100%; }
+    .slider output { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; text-align: right; }
+    .wide-label .slider { grid-template-columns: 3.6em minmax(0, 1fr) 3em; }
+    .check { display: block; margin: 4px 0; }
+
+    /* The two views */
+    #views { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    @media (max-width: 520px) { #views { grid-template-columns: minmax(0, 1fr); } }
+    .view { margin: 0; min-width: 0; }
+    .formula { margin: 0 0 6px; }
+    .view-wrap { position: relative; width: 100%; aspect-ratio: 1 / 1; border: 1px solid #ccc; background: #fff; }
+    .view-wrap canvas { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
+    .view-wrap canvas.overlay { pointer-events: none; }
+    .readout { margin: 6px 0 0; font-size: 0.85rem; color: #1d7a34; }
+    .readout.bad { color: #c0262d; }
+    #no-webgl { color: #c0262d; font-weight: 600; }
+
+    /* The legend under the views */
+    #legend { display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: center; margin: 10px 0 0; font-size: 0.8rem; }
+    #legend .item { display: flex; align-items: center; gap: 6px; }
+    .ramp { width: 120px; height: 10px; border-radius: 2px;
+      background: linear-gradient(to right, hsl(130,75%,40%), hsl(65,75%,35%), hsl(0,75%,30%)); }
+    .swatch-dot { width: 9px; height: 9px; border-radius: 50%; background: #222; }
+    .swatch-line { width: 22px; height: 3px; background: #1f5fbf; }
+
+    /* Steps */
+    #steps { display: flex; flex-direction: column; }
+    #step-count { font-size: 0.78rem; color: #666; margin: 0 0 2px; }
+    #step-body { flex: 1; }
+    #step-body p, #step-body li { margin: 6px 0; }
+    #step-body ul { padding-left: 1.2em; }
+    .eq { font-family: "Cambria Math", "STIX Two Math", Georgia, serif; font-size: 1.02rem; margin: 6px 0; }
+    p.eq { text-align: center; }
+    ol.derive { list-style: none; padding: 0; margin: 8px 0; }
+    ol.derive li { border-left: 3px solid #1f5fbf; padding: 2px 0 2px 10px; margin: 6px 0; }
+    ol.derive li:last-child { background: #eef4fc; }
+    ol.derive .eq { margin: 0; }
+    ol.derive .why { font-size: 0.8rem; color: #555; }
+    table.live { border-collapse: collapse; margin: 6px 0; }
+    table.live th, table.live td { font-size: 0.82rem; padding: 3px 6px; text-align: left; border-bottom: 1px solid #eee; white-space: nowrap; }
+    table.live th { font-weight: 600; }
+    .matrices { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 6px 0; font-size: 0.88rem; }
+    table.matrix { border-collapse: collapse; border-left: 1.5px solid #333; border-right: 1.5px solid #333; border-radius: 4px; }
+    table.matrix td { padding: 1px 8px; text-align: center; font-family: "Cambria Math", Georgia, serif; font-size: 0.92rem; }
+    #step-try { align-self: flex-start; margin: 4px 0 10px; }
+    .step-nav { display: flex; justify-content: space-between; gap: 8px; }
+    button { font: inherit; font-size: 0.85rem; padding: 6px 14px; border: 1px solid #bbb; border-radius: 5px; background: #fff; cursor: pointer; }
+    button:hover:not(:disabled) { background: #eef4fc; }
+    button:disabled { color: #aaa; cursor: default; }
+    #step-next { background: #1f5fbf; border-color: #1f5fbf; color: #fff; }
+    #step-next:hover:not(:disabled) { background: #194f9f; }
+    #step-next:disabled { background: #9db5dc; border-color: #9db5dc; color: #fff; }
+
+    /* Code */
+    #code-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+    #code-shared { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 6px; }
+    @media (max-width: 900px) { #code-columns, #code-shared { grid-template-columns: minmax(0, 1fr); } }
+    #code h2 { margin-top: 6px; }
+    pre.code { margin: 0; padding: 8px 10px; background: #f8f8f8; border: 1px solid #e4e4e4; border-radius: 4px;
+      font-size: 0.74rem; line-height: 1.45; overflow-x: auto; }
+    pre.code .comment { color: #6a737d; }
+    pre.code .diff { display: inline-block; min-width: 100%; font-weight: 700; background: #fff3c4; }
+    pre.code .diff .comment { color: #8a6d00; }
+  </style>
+</head>
+<body>
+  <h1>Normals Under Non-Uniform Scaling</h1>
+  <p class="intro">Lighting needs a <b>normal</b> at each vertex: a unit
+    vector perpendicular to the surface. Both spheres below are scaled by the
+    same model matrix M = scale(s<sub>x</sub>, s<sub>y</sub>, s<sub>z</sub>);
+    they differ only in how the vertex shader transforms their normals. Move
+    the scale sliders and compare the two views, then follow the steps.</p>
+
+  <div id="layout">
+    <aside id="controls" class="card">
+      <h2>Preset</h2>
+      <select id="preset" aria-label="Preset"></select>
+      <p id="preset-note" class="hint"></p>
+
+      <h2>Scale (model matrix M)</h2>
+      <div class="slider"><label for="scale-x">x</label>
+        <input type="range" id="scale-x" min="0.25" max="3" step="0.05"><output id="scale-x-value"></output></div>
+      <div class="slider"><label for="scale-y">y</label>
+        <input type="range" id="scale-y" min="0.25" max="3" step="0.05"><output id="scale-y-value"></output></div>
+      <div class="slider"><label for="scale-z">z</label>
+        <input type="range" id="scale-z" min="0.25" max="3" step="0.05"><output id="scale-z-value"></output></div>
+      <p class="hint">One set of sliders scales both spheres.</p>
+
+      <h2>View</h2>
+      <div class="wide-label">
+        <div class="slider"><label for="view-angle">angle</label>
+          <input type="range" id="view-angle" min="-180" max="180" step="1"><output id="view-angle-value"></output></div>
+        <div class="slider"><label for="view-height">height</label>
+          <input type="range" id="view-height" min="-60" max="60" step="1"><output id="view-height-value"></output></div>
+      </div>
+      <p class="hint">These move the camera around both spheres. They don't
+        change the model matrix.</p>
+
+      <h2>Show</h2>
+      <label class="check"><input type="checkbox" id="show-normals" checked> normals</label>
+      <label class="check"><input type="checkbox" id="shading" checked> shading</label>
+      <p class="hint">The light comes from the upper left, in front. With
+        shading off, the spheres are flat gray.</p>
+    </aside>
+
+    <section id="views-card" class="card">
+      <p id="no-webgl" hidden>This page needs WebGL 2, which this browser does not provide.</p>
+      <div id="views">
+        <figure class="view" id="view-left">
+          <h2>Normals × model matrix</h2>
+          <p class="formula"><code>n′ = mat3(M) · n</code></p>
+          <div class="view-wrap"><canvas class="gl"></canvas><canvas class="overlay"></canvas></div>
+          <p class="readout"></p>
+        </figure>
+        <figure class="view" id="view-right">
+          <h2>Normals × normal matrix</h2>
+          <p class="formula"><code>n′ = (M⁻¹)ᵀ · n</code></p>
+          <div class="view-wrap"><canvas class="gl"></canvas><canvas class="overlay"></canvas></div>
+          <p class="readout"></p>
+        </figure>
+      </div>
+      <div id="legend">
+        <span class="item">normal's angle from the true normal: 0°
+          <span class="ramp"></span> 30° or more</span>
+        <span class="item"><span class="swatch-dot"></span> sample vertex</span>
+        <span class="item"><span class="swatch-line"></span> its tangent t′ = M t</span>
+      </div>
+      <p class="hint">All normals are normalized and drawn at the same length,
+        so only their directions differ. Normals on the far side are hidden.</p>
+    </section>
+
+    <aside id="steps" class="card">
+      <p id="step-count"></p>
+      <h2 id="step-title"></h2>
+      <div id="step-body"></div>
+      <button id="step-try" type="button"></button>
+      <div class="step-nav">
+        <button id="step-back" type="button">Back</button>
+        <button id="step-next" type="button">Next</button>
+      </div>
+    </aside>
+
+    <section id="code" class="card">
+      <h2>The code</h2>
+      <p class="hint">This is the code that draws the two views (from
+        index.js). The highlighted lines are the only difference.</p>
+      <div id="code-columns">
+        <div><h2>Left: normals × model matrix</h2><div id="code-left"></div></div>
+        <div><h2>Right: normals × normal matrix</h2><div id="code-right"></div></div>
+      </div>
+      <h2>Both views</h2>
+      <div id="code-shared"></div>
+      <p class="hint"><code>upperLeft3</code>, <code>inverse3</code> and
+        <code>transpose3</code> are helpers in section 2 of index.js.</p>
+    </section>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>
