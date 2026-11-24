@@ -1,6 +1,7 @@
 # WebGL vertex ID playground: notes
 
 ## 2026-11-23: first version
+- Committed and pushed 2026-11-24 (commit 378a5ab).
 - Planned with the instructor after brainstorming a vertex-indexing
   activity. Decisions (asked in a dialog):
   - Scope: `gl_VertexID` (arrays vs elements), shared vertices, smooth vs
