@@ -2,7 +2,7 @@
 //  Ways to Color a Cube - 1: ONE SOLID COLOR, AS A UNIFORM
 // =====================================================================
 //
-// This is example 1 of 5 in "Ways to Color a Cube":
+// This is example 1 of 6 in "Ways to Color a Cube":
 //
 //   1-solid-uniform.js         ONE color for the whole cube, sent as a
 //                              UNIFORM
@@ -14,6 +14,9 @@
 //                              every triangle
 //   5-custom-interpolation.js  same colors as 4, but the fragment shader
 //                              does the interpolation itself
+//   6-per-triangle-rules.js    same as 5, but even and odd triangles
+//                              each get their own rule, picked with
+//                              gl_VertexID (WebGL 2)
 //
 // HOW THE FIVE EXAMPLES FIT TOGETHER
 // ----------------------------------

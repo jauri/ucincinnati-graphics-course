@@ -1,0 +1,104 @@
+<!doctype html>
+<!--
+  Ways to Color a Cube - page 6 of 6.
+  The six .html pages are identical except for: which tab is
+  highlighted, the caption, and which <script> they load.
+  (Pages 5 and 6 also have menus for picking the interpolation rule.)
+  Open this file directly in a browser; no server is needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube Coloring 6: Per-Triangle Rules</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #1e1e1e;
+      color: #ddd;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    /* The tab bar: six plain links, the current page highlighted. */
+    nav { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 8px 0; background: #111; }
+    nav a {
+      padding: 8px 16px;
+      color: #aaa;
+      text-decoration: none;
+      border-radius: 6px 6px 0 0;
+      background: #2a2a2a;
+    }
+    nav a:hover { color: #fff; }
+    nav a.current { background: #1e1e1e; color: #fff; font-weight: bold; }
+    /* The canvas fills the remaining space; JS matches its pixel size. */
+    canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+    .caption { padding: 4px 16px 12px; max-width: 70ch; line-height: 1.4; }
+    .caption h1 { font-size: 1.1rem; margin: 8px 0; }
+    .caption p { margin: 6px 0; }
+    /* The interpolation-rule menus (only on pages 5 and 6). */
+    .caption label { font-weight: bold; }
+    .caption select { font: inherit; padding: 2px 4px; margin-left: 6px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="1-solid-uniform.html">1. Solid (uniform)</a>
+    <a href="2-solid-attribute.html">2. Solid (attribute)</a>
+    <a href="3-face-colors.html">3. Face colors</a>
+    <a href="4-vertex-interpolation.html">4. Interpolated</a>
+    <a href="5-custom-interpolation.html">5. Do-it-yourself interpolation</a>
+    <a href="6-per-triangle-rules.html" class="current">6. Per-triangle rules</a>
+  </nav>
+
+  <canvas id="c"></canvas>
+
+  <div class="caption">
+      <h1>6. Per-triangle rules</h1>
+      <p>Same as tab 5, but now in <b>WebGL 2</b>, and every other triangle
+      uses a different rule. The vertex shader reads the built-in
+      <code>gl_VertexID</code> (0, 1, 2, …, 35) and computes the triangle
+      number, <code>gl_VertexID / 3</code>. It passes that number on as a
+      <b>flat</b> output, so the rasterizer does not interpolate it. The
+      fragment shader then uses one rule for even triangles and another for
+      odd ones.</p>
+      <p>
+        <!-- The JS reads these menus every frame and sends them to the
+             shader as uModeEven and uModeOdd. To add a rule, add an
+             <option> to BOTH menus and a matching case in interpolate()
+             in 6-per-triangle-rules.js. -->
+        <label for="modeEven">Even triangles (0, 2, 4, …):</label>
+        <select id="modeEven">
+          <option value="0" selected>0. Linear (same as tab 4)</option>
+          <option value="1">1. Nearest vertex</option>
+          <option value="2">2. Sharpened</option>
+          <option value="3">3. Bands</option>
+          <option value="4">4. Wireframe</option>
+          <option value="5">5. Ripple (linear + nearest, animated)</option>
+          <option value="6">6. Growing territory (nearest vertex, animated)</option>
+          <option value="7">7. Growing wireframe (animated)</option>
+        </select>
+      </p>
+      <p>
+        <label for="modeOdd">Odd triangles (1, 3, 5, …):</label>
+        <select id="modeOdd">
+          <option value="0">0. Linear (same as tab 4)</option>
+          <option value="1" selected>1. Nearest vertex</option>
+          <option value="2">2. Sharpened</option>
+          <option value="3">3. Bands</option>
+          <option value="4">4. Wireframe</option>
+          <option value="5">5. Ripple (linear + nearest, animated)</option>
+          <option value="6">6. Growing territory (nearest vertex, animated)</option>
+          <option value="7">7. Growing wireframe (animated)</option>
+        </select>
+      </p>
+      <p>Each face is two triangles, one even and one odd, so every face
+      shows both rules. Set both menus to the same rule and the cube looks
+      just like tab 5.</p>
+  </div>
+
+  <!-- Each page loads exactly one program. -->
+  <script src="6-per-triangle-rules.js"></script>
+</body>
+</html>

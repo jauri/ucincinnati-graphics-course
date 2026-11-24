@@ -52,6 +52,16 @@ Nothing has been committed to git.
   with y shifted by −0.5 to center it.
 - The tab bar uses `flex-wrap: wrap` so five tabs fit on narrow screens.
 
+### 2026-11-24: Tab 6, per-triangle rules
+
+Added `6-per-triangle-rules.html` / `.js` (user request: some triangles
+use one rule, some another, using vertex IDs). Decisions, asked in a
+dialog: a new WebGL 2 tab copied from Tab 5 rather than changing Tab 5
+(keeps `diff 4 5` clean; alternatives were an `aTriangle` attribute in
+WebGL 1, or two draw calls with different `uMode`); split by even / odd
+triangle; two dropdowns. Also updated the tab bar and "of 6" headers in
+all pages, root `index.html`, and `webGL-examples/README.md`.
+
 ### Possible next steps (not requested yet)
 
 - Commit the work to git.

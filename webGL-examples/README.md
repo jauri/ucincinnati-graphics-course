@@ -14,7 +14,7 @@ server is needed.
 |---|---|---|
 | [cube-grid](examples/cube-grid/) | A grid of cubes with random heights and colors: shaders, buffers, attributes, uniforms, model/view/projection matrices | `index.html` |
 | [camera-move](examples/camera-move/) | A camera orbiting a still scene: the view matrix (`lookAt`), perspective, the animation loop | `index.html` |
-| [cube-color-alternatives](examples/cube-color-alternatives/) | Five ways to color a cube: uniform vs. attribute, per-face colors, interpolated corner colors, interpolation done in the fragment shader | `1-solid-uniform.html` (use the tabs) |
+| [cube-color-alternatives](examples/cube-color-alternatives/) | Six ways to color a cube: uniform vs. attribute, per-face colors, interpolated corner colors, interpolation done in the fragment shader, a different rule per triangle with `gl_VertexID` (WebGL 2) | `1-solid-uniform.html` (use the tabs) |
 
 ## Self-check quizzes
 cube-grid and camera-move each have a quiz in `quiz-selfcheck/`. Open its
