@@ -478,3 +478,8 @@ five pages link their programs with no console errors.
 - Remaining animation candidates: sweeping stripes (field = λ0), hexagon
   to corners (field = max λ), animated sharpening power (morphs linear →
   nearest vertex), option B above.
+- Same day: added rule 7 "Growing wireframe" (the instructor's idea).
+  Rule 4's edge threshold on min λ moves 0.02 → 1/3 → 0.02 over a 4 s
+  cycle, reusing rule 6's up-and-down timer, so the black edges grow
+  inward until the triangle is black, then recede. Rule 4 left unchanged
+  as the static version.

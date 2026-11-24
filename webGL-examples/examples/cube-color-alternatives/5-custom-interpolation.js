@@ -99,7 +99,7 @@ const gl = canvas.getContext('webgl');
 //    of ALL THREE vertices of its triangle (aColor0, aColor1, aColor2).
 //    The fragment shader gets a uniform, uMode, that picks the interpolation
 //    rule, and a uniform, uTime, the seconds since the page loaded (only
-//    the animated rules, 5 and 6, use it).
+//    the animated rules, 5, 6 and 7, use it).
 //
 //    The "// language=GLSL" and "/* glsl */" comments below tell your
 //    editor to color the string as GLSL (needs a GLSL plugin). They don't
@@ -174,7 +174,7 @@ const fragmentShaderSource = /* glsl */ `
   varying vec3 vColor2;
 
   uniform int uMode;          // which interpolation rule: set from the menu
-  uniform float uTime;        // seconds since the page loaded (rules 5, 6)
+  uniform float uTime;        // seconds since the page loaded (rules 5, 6, 7)
 
   // -------------------------------------------------------------------
   // interpolate(): THE INTERPOLATION RULE. This is the part to experiment with.
@@ -342,6 +342,25 @@ const fragmentShaderSource = /* glsl */ `
       if (b.x >= b.y && b.x >= b.z) return c0;          // rule 1: nearest
       if (b.y >= b.z) return c1;
       return c2;
+    }
+
+    // RULE 7 - GROWING WIREFRAME: rule 4, but the edge width changes over time.
+    // The smallest weight is the distance to the nearest edge: 0 on an edge,
+    // 1/3 at the center. So as the threshold goes from 0.02 up to 1/3, the
+    // black edges grow inward until they meet at the center. Then the
+    // threshold shrinks back to 0.02 and the colors return.
+    if (uMode == 7) {
+      float secondsPerCycle = 4.0;          // edge -> center -> edge
+      float progress = fract(uTime / secondsPerCycle);
+      float upAndDown = 1.0 - abs(2.0 * progress - 1.0);   // 0 ... 1 ... 0
+      float threshold = mix(0.02, 1.0 / 3.0, upAndDown);   // 0.02 ... 1/3 ... 0.02
+
+      vec3 color = b.x * c0 + b.y * c1 + b.z * c2;
+      float distanceToEdge = min(b.x, min(b.y, b.z));
+      if (distanceToEdge < threshold) {
+        color = vec3(0.05);               // near an edge: almost black
+      }
+      return color;
     }
 
     // Unknown mode: bright pink, so a missing case is easy to spot.
@@ -814,7 +833,7 @@ function draw(angle, seconds) {
     // uniform1i = "set a uniform that is 1 integer".
     gl.uniform1i(uMode, Number(modeMenu.value));
 
-    // Send the clock, so the animated rules (5, 6) can change over time.
+    // Send the clock, so the animated rules (5, 6, 7) can change over time.
     // uniform1f = "set a uniform that is 1 float".
     gl.uniform1f(uTime, seconds);
 

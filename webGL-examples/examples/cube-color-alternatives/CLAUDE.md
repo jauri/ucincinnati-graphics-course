@@ -67,7 +67,8 @@ CSS.
 - Fragment shader: `uniform int uMode` picks a case in
   `interpolate(b, c0, c1, c2)`: 0 linear, 1 nearest vertex, 2 sharpened
   (pow 4, renormalized), 3 bands (floor to 1/4 steps, renormalized),
-  4 wireframe (min λ < 0.02 → near black), 5 ripple, 6 growing territory (see below). An
+  4 wireframe (min λ < 0.02 → near black), 5 ripple, 6 growing territory,
+  7 growing wireframe (see below). An
   unknown mode returns bright pink. Rule 0 must look like Tab 4.
 - Rule 5 (ripple): field = min λ (distance to nearest edge, 0 … 1/3), so
   the bands are nested triangles. `sin(2π(4 · 3·minλ − uTime / 1.5)) > 0`
@@ -79,8 +80,12 @@ CSS.
   0.5 → 1 → 0.5 during each 3 s turn (up and back down, no jump between
   turns). T starts at 0.5 because k already owns λk > 1/2 under plain
   nearest vertex. λk/ck picked with ifs, not b[k] (WebGL 1 indexing).
+- Rule 7 (growing wireframe): rule 4 with a moving threshold. Threshold =
+  mix(0.02, 1/3, upAndDown), same 0 → 1 → 0 triangle wave as rule 6, 4 s
+  per cycle. The black edges grow inward to the center (min λ = 1/3) and
+  shrink back.
 - `uniform float uTime` = seconds since page load, set with
-  `gl.uniform1f` in `draw(angle, seconds)`; only rules 5 and 6 read it. Tab 5's
+  `gl.uniform1f` in `draw(angle, seconds)`; only rules 5, 6 and 7 read it. Tab 5's
   `draw` takes two arguments, Tabs 1–4 take one.
 - `draw()` reads `<select id="mode">` every frame and calls
   `gl.uniform1i(uMode, …)`. There are no event listeners.
