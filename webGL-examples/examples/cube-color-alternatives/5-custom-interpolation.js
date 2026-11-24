@@ -98,7 +98,8 @@ const gl = canvas.getContext('webgl');
 //    vertex carries its barycentric coordinates (aBary) and the colors
 //    of ALL THREE vertices of its triangle (aColor0, aColor1, aColor2).
 //    The fragment shader gets a uniform, uMode, that picks the interpolation
-//    rule.
+//    rule, and a uniform, uTime, the seconds since the page loaded (only
+//    the animated rules, 5 and 6, use it).
 //
 //    The "// language=GLSL" and "/* glsl */" comments below tell your
 //    editor to color the string as GLSL (needs a GLSL plugin). They don't
@@ -173,6 +174,7 @@ const fragmentShaderSource = /* glsl */ `
   varying vec3 vColor2;
 
   uniform int uMode;          // which interpolation rule: set from the menu
+  uniform float uTime;        // seconds since the page loaded (rules 5, 6)
 
   // -------------------------------------------------------------------
   // interpolate(): THE INTERPOLATION RULE. This is the part to experiment with.
@@ -252,6 +254,94 @@ const fragmentShaderSource = /* glsl */ `
         color = vec3(0.05);               // near an edge: almost black
       }
       return color;
+    }
+
+    // RULE 5 - RIPPLE: mix two rules INSIDE one triangle, and let the
+    // border between them move over time. Some fragments use rule 0
+    // (linear), the rest use rule 1 (nearest vertex).
+    //
+    // Step 1: one number that says where we are in the triangle. As in
+    // rule 4, the smallest weight is the distance to the nearest edge:
+    // 0 on every edge, 1/3 at the very center (where all three weights
+    // are 1/3). The points with the same value form a smaller triangle
+    // inside this one, so the bands below are NESTED TRIANGLES.
+    //
+    // Step 2: a wave over that number. sin() goes up and down, so
+    // "sin(...) > 0" picks out every other band. Subtracting time from
+    // the angle shifts the bands a little every frame: they travel
+    // inward from the edges to the center.
+    //
+    // Each triangle has its own barycentric weights, so each one gets its
+    // own set of rings. They still line up across a shared edge, because
+    // the distance to the nearest edge is 0 on both sides of it.
+    if (uMode == 5) {
+      float rings = 4.0;                  // bands per triangle (edge to center)
+      float secondsPerRing = 1.5;         // how long one ring takes to pass
+      float distanceToEdge = min(b.x, min(b.y, b.z));   // 0 ... 1/3
+
+      // One full sine cycle (2 pi) per ring: distanceToEdge * 3.0 goes
+      // 0 ... 1 from the edge to the center.
+      float wave = sin(6.2832 * (rings * distanceToEdge * 3.0
+                                 - uTime / secondsPerRing));
+
+      if (wave > 0.0) {
+        return b.x * c0 + b.y * c1 + b.z * c2;          // rule 0: linear
+      }
+      if (b.x >= b.y && b.x >= b.z) return c0;          // rule 1: nearest
+      if (b.y >= b.z) return c1;
+      return c2;
+    }
+
+    // RULE 6 - GROWING TERRITORY: nearest vertex, but one vertex at a
+    // time gets to claim MORE than its usual share, and how much it may
+    // claim changes over time.
+    //
+    // 1.0 - λ measures how far a fragment is from a vertex: 0 at the
+    // vertex, 1 on the opposite edge. Vertex k claims every fragment with
+    //     1.0 - λk <= T,   that is,   λk >= 1.0 - T.
+    // The points with the same λk lie on a straight line parallel to the
+    // opposite edge, so the border of k's territory is a straight line
+    // that sweeps across the triangle as T changes.
+    //
+    // Why T only goes from 0.5 to 1.0: under plain nearest vertex, vertex
+    // k already owns every fragment with λk > 1/2 (no other weight can be
+    // bigger). A smaller T would only claim fragments k already has, so
+    // nothing would change on screen. At T = 1.0, λk >= 0 is true
+    // everywhere, so k owns the whole triangle.
+    //
+    // Each vertex gets a turn of 3 seconds (0, then 1, then 2, repeat).
+    // During a turn T goes up from 0.5 to 1.0 and back down, so k's
+    // territory grows over the whole triangle and shrinks back before
+    // the next vertex starts (no sudden jump between turns).
+    //
+    // On the cube, "vertex 0" is whichever vertex is listed first in each
+    // triangle, a different cube corner from triangle to triangle. So the
+    // two triangles of a face grow from different corners.
+    if (uMode == 6) {
+      float secondsPerTurn = 3.0;
+      float turns = uTime / secondsPerTurn;
+
+      // Whose turn: 0, 1, 2, 0, 1, 2, ...
+      float k = mod(floor(turns), 3.0);
+
+      // How far into this turn: 0 ... 1. Then "up and back down":
+      // 0 at the start, 1 halfway, 0 at the end.
+      float progress = fract(turns);
+      float upAndDown = 1.0 - abs(2.0 * progress - 1.0);
+      float T = 0.5 + 0.5 * upAndDown;    // 0.5 ... 1.0 ... 0.5
+
+      // Pick vertex k's weight and color. (WebGL 1 does not reliably let
+      // us write b[k] when k changes while the program runs, so we use ifs.)
+      float lambdaK = b.z;
+      vec3 colorK = c2;
+      if (k < 0.5)      { lambdaK = b.x; colorK = c0; }
+      else if (k < 1.5) { lambdaK = b.y; colorK = c1; }
+
+      if (lambdaK >= 1.0 - T) return colorK;            // k's territory
+
+      if (b.x >= b.y && b.x >= b.z) return c0;          // rule 1: nearest
+      if (b.y >= b.z) return c1;
+      return c2;
     }
 
     // Unknown mode: bright pink, so a missing case is easy to spot.
@@ -545,11 +635,13 @@ connectAttribute('aColor2',  15);    // 3rd vertex's color
 //   uView       - per frame: the camera's position and direction
 //   uProjection - per frame: perspective (far things look smaller)
 //   uMode       - per frame: which interpolation rule the menu is set to
+//   uTime       - per frame: seconds since the page loaded
 // (There is no uColor any more: color now comes from the buffer.)
 const uModel = gl.getUniformLocation(program, 'uModel');
 const uView = gl.getUniformLocation(program, 'uView');
 const uProjection = gl.getUniformLocation(program, 'uProjection');
 const uMode = gl.getUniformLocation(program, 'uMode');
+const uTime = gl.getUniformLocation(program, 'uTime');
 
 // The <select> menu on the page that picks the interpolation rule. Each
 // <option> has a value ("0", "1", ...) matching a case in interpolate().
@@ -650,14 +742,15 @@ function lookAt(eye, target, up) {
 // 4. DRAW
 //    Everything above was SETUP: it ran once and got the shaders and the
 //    buffer ready. draw() produces ONE picture of the cube, turned by
-//    `angle` radians. It follows the same steps every time:
+//    `angle` radians, at time `seconds` (for the animated rules). It follows
+//    the same steps every time:
 //
 //      a. size the drawing area to match the window
 //      b. wipe the previous picture
 //      c. set the camera
 //      d. set the cube's rotation, then tell the GPU to draw
 // ---------------------------------------------------------------------
-function draw(angle) {
+function draw(angle, seconds) {
     // --- a. Size the drawing area -------------------------------------
     // A canvas has two sizes: how big it looks on the page (set by CSS),
     // and how many pixels it actually has. If they don't match, the
@@ -721,6 +814,10 @@ function draw(angle) {
     // uniform1i = "set a uniform that is 1 integer".
     gl.uniform1i(uMode, Number(modeMenu.value));
 
+    // Send the clock, so the animated rules (5, 6) can change over time.
+    // uniform1f = "set a uniform that is 1 float".
+    gl.uniform1f(uTime, seconds);
+
     // The actual draw call: "read VERTEX_COUNT (36) vertices from the
     // buffer, starting at vertex 0, and treat every 3 as a triangle."
     // For this call the GPU:
@@ -747,11 +844,11 @@ function draw(angle) {
 //    A fast computer draws more frames per second than a slow one, but
 //    the cube still turns at the same speed on both.
 // ---------------------------------------------------------------------
-const SPIN_SPEED = 0.8;   // radians per second (a full turn takes ~8 s)
+const SPIN_SPEED = 0.3;   // radians per second (a full turn takes ~21 s)
 
 function animate(timeInMilliseconds) {
     const seconds = timeInMilliseconds / 1000;
-    draw(seconds * SPIN_SPEED);
+    draw(seconds * SPIN_SPEED, seconds);
     requestAnimationFrame(animate);   // ask to be called again next frame
 }
 

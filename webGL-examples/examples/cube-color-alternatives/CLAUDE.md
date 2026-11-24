@@ -67,8 +67,21 @@ CSS.
 - Fragment shader: `uniform int uMode` picks a case in
   `interpolate(b, c0, c1, c2)`: 0 linear, 1 nearest vertex, 2 sharpened
   (pow 4, renormalized), 3 bands (floor to 1/4 steps, renormalized),
-  4 wireframe (min λ < 0.02 → near black). An unknown mode returns bright
-  pink. Rule 0 must look like Tab 4.
+  4 wireframe (min λ < 0.02 → near black), 5 ripple, 6 growing territory (see below). An
+  unknown mode returns bright pink. Rule 0 must look like Tab 4.
+- Rule 5 (ripple): field = min λ (distance to nearest edge, 0 … 1/3), so
+  the bands are nested triangles. `sin(2π(4 · 3·minλ − uTime / 1.5)) > 0`
+  → rule 0 (linear), else rule 1 (nearest vertex). 4 rings per triangle,
+  moving inward, one ring every 1.5 s. Rings restart per triangle but line
+  up across shared edges. Hard switch on purpose (no smoothstep mix).
+- Rule 6 (growing territory): vertex k = floor(uTime / 3) mod 3 claims
+  fragments with λk ≥ 1 − T; everything else is rule 1. T goes
+  0.5 → 1 → 0.5 during each 3 s turn (up and back down, no jump between
+  turns). T starts at 0.5 because k already owns λk > 1/2 under plain
+  nearest vertex. λk/ck picked with ifs, not b[k] (WebGL 1 indexing).
+- `uniform float uTime` = seconds since page load, set with
+  `gl.uniform1f` in `draw(angle, seconds)`; only rules 5 and 6 read it. Tab 5's
+  `draw` takes two arguments, Tabs 1–4 take one.
 - `draw()` reads `<select id="mode">` every frame and calls
   `gl.uniform1i(uMode, …)`. There are no event listeners.
 - Names: the constant is `BARY_COORDS`; rule 1 is "Nearest vertex".
@@ -79,7 +92,7 @@ CSS.
 - Open `1-solid-uniform.html` first and click through the tabs.
 - To compare two tabs pixel by pixel: load both pages in same-origin
   iframes, give each canvas a fixed CSS size (e.g. 300×300), call
-  `draw(1.0)`, then `gl.readPixels` right away (same task, so the drawing
+  `draw(1.0)` (`draw(1.0, 0)` in Tab 5), then `gl.readPixels` right away (same task, so the drawing
   buffer is still there).
 - Last verified 2026-10-15: all five pages compile and link with no console
   errors, every tab link resolves, and Tabs 1 and 2 are pixel-identical at

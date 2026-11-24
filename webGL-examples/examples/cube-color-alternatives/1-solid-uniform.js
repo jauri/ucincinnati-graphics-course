@@ -523,7 +523,7 @@ function draw(angle) {
 //    A fast computer draws more frames per second than a slow one, but
 //    the cube still turns at the same speed on both.
 // ---------------------------------------------------------------------
-const SPIN_SPEED = 0.8;   // radians per second (a full turn takes ~8 s)
+const SPIN_SPEED = 0.3;   // radians per second (a full turn takes ~21 s)
 
 function animate(timeInMilliseconds) {
     const seconds = timeInMilliseconds / 1000;

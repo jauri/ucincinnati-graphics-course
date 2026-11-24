@@ -40,7 +40,7 @@ Nothing has been committed to git.
 - Clear color is dark gray `(0.12, 0.12, 0.12)`, not black, so Tab 4's black
   cube corner is visible against the background.
 - Camera: `lookAt([0, 0, 3], [0, 0, 0], [0, 1, 0])`, 45° FOV.
-- Animation: `SPIN_SPEED = 0.8` rad/s, angle = elapsed seconds × speed
+- Animation: `SPIN_SPEED = 0.3` rad/s (was 0.8 until 2026-11-24), angle = elapsed seconds × speed
   (uses the `requestAnimationFrame` timestamp). Model =
   `rotationY(a) × rotationX(0.7a)`.
 - `draw()` resizes the canvas only when its client size changed (instead of
@@ -456,3 +456,25 @@ Applied with one script so the added lines are identical in all five
 files. Checked: `node --check` on all five; each of the four neighboring
 diffs is exactly what it was before (compared without line numbers); all
 five pages link their programs with no console errors.
+
+## 2026-11-24: rule 5 "Ripple" and slower spin
+- Added rule 5 to Tab 5: nested-triangle bands (field = min λ) that move
+  inward over time; inside a band the fragment uses linear, outside it
+  nearest vertex. New `uniform float uTime` (seconds), `draw(angle,
+  seconds)`, and a menu option. Decided with the instructor: nested
+  triangles (not stripes from a vertex or a centroid distance), linear vs
+  nearest vertex, per-triangle restart kept as a feature, hard switch
+  rather than a smooth mix (a mix would be blending two colors and muddy
+  the "interpolation is not blending" point).
+- `SPIN_SPEED` lowered from 0.8 to 0.3 rad/s in all five files (identical
+  line, so the tab diffs are unchanged).
+- Possible follow-ups: a sweeping-stripes variant (field = λ0), and
+  more color-assignment modes in a new example set built on this one.
+- Same day: added rule 6 "Growing territory" (appended, no renumbering).
+  The instructor's idea: the nearest-vertex criterion shifts over time.
+  Chose "one vertex at a time claims λk ≥ 1 − T" (option A) over a
+  rotating per-vertex bias added to the weights (option B, all borders
+  slide at once; still a candidate). Smooth motion, not stepped.
+- Remaining animation candidates: sweeping stripes (field = λ0), hexagon
+  to corners (field = max λ), animated sharpening power (morphs linear →
+  nearest vertex), option B above.
