@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<!--
+  index.html — the page for the WebGL vertex ID playground.
+
+  The page has two parts:
+    1. A side panel with the controls: a starting point (preset), the draw
+       call (drawArrays or drawElements, with the index buffer), what the
+       vertex shader does with gl_VertexID, and how the fragment shader
+       receives the result (interpolated, flat, or as edges).
+    2. The main area, with these views of the same draw:
+         - Memory: the index buffer and the vertex buffer, and which vertex
+                   each step of the draw call fetches.
+         - Result: what real WebGL 2 draws. Click it to inspect a fragment.
+         - Fragment inspector: what the fragment shader received at the
+                   point you clicked, worked out by hand, next to the color
+                   WebGL actually drew there.
+         - Vertex shader runs: gl_VertexID and the outputs for every step.
+         - The two shaders (the exact source WebGL compiled) and the draw
+                   call.
+
+  To run: just open this file in a web browser (double-click it).
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebGL Vertex ID Playground</title>
+  <style>
+    /* Remove the default page margin so the layout can fill the window. */
+    html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: #222; background: #f4f4f4; }
+
+    /* Side panel on the left, main area filling the rest. Each one
+       scrolls on its own. */
+    body { display: flex; }
+    #panel { width: 320px; flex: none; padding: 16px; box-sizing: border-box; overflow-y: auto; background: #fff; border-right: 1px solid #ddd; }
+    #main { flex: 1; min-width: 0; overflow-y: auto; padding: 12px 16px 24px; box-sizing: border-box; }
+
+    h1 { font-size: 1.15rem; margin: 0 0 8px; }
+    h2 { font-size: 0.95rem; margin: 18px 0 6px; }
+    #main h2 { margin: 4px 0 6px; }
+    p, li { font-size: 0.85rem; line-height: 1.4; }
+    ul { padding-left: 18px; margin: 4px 0; }
+    label { font-size: 0.85rem; }
+    button, select, input { font: inherit; font-size: 0.85rem; }
+    button { padding: 3px 10px; }
+    select { max-width: 100%; }
+    input[type="number"] { width: 4.5em; }
+    code, pre, .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+    code { font-size: 0.8rem; }
+
+    /* One box per group of controls. The colored left border matches the
+       colors used in the main area. */
+    fieldset { border: 1px solid #ddd; border-left-width: 5px; border-radius: 4px; margin: 8px 0; padding: 6px 10px 8px; }
+    fieldset.draw { border-left-color: #7b3fb5; }
+    fieldset.vs { border-left-color: #1f5fbf; }
+    fieldset.fs { border-left-color: #d0700a; }
+    legend { font-weight: 600; font-size: 0.85rem; }
+    fieldset label { display: block; margin: 3px 0; }
+    .grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; margin-top: 4px; }
+    .grid label { margin: 0; }
+    .hint { font-size: 0.75rem; color: #666; }
+    #index-editor input { width: 3.2em; margin: 2px 2px 2px 0; }
+    /* A thin gap after every third index input: one triangle per group. */
+    #index-editor input.triangle-end { margin-right: 10px; }
+
+    /* Main area: white cards. */
+    section { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 10px 12px; margin-bottom: 12px; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+    .row > section { margin-bottom: 0; }
+    #step-explain { font-size: 0.85rem; margin: 0 0 6px; }
+    #step-explain div { margin: 2px 0; }
+
+    /* "display: block" removes a small gap browsers leave under inline
+       elements. The memory canvas's height is set in index.js, because it
+       depends on how much data there is. */
+    canvas { display: block; }
+    #memory { width: 100%; }
+
+    /* The WebGL canvas and the 2D overlay sit exactly on top of each other.
+       WebGL draws the triangles; the overlay labels the vertices and
+       catches clicks. */
+    #result-wrap { position: relative; width: 320px; height: 320px; border: 1px solid #ccc; }
+    #result-wrap canvas { position: absolute; left: 0; top: 0; width: 320px; height: 320px; }
+    #overlay { cursor: crosshair; }
+    #draw-report { font-size: 0.8rem; margin: 6px 0 0; max-width: 320px; }
+    #legend { font-size: 0.75rem; color: #666; margin: 4px 0 0; max-width: 320px; }
+
+    #inspector-section { flex: 1; min-width: 300px; }
+    #inspector { font-size: 0.85rem; line-height: 1.45; }
+    #inspector div { margin: 3px 0; }
+    #inspector .used { background: #fff3c4; border-radius: 3px; padding: 1px 3px; }
+    #inspector .unused { color: #999; }
+
+    table { border-collapse: collapse; font-size: 0.8rem; }
+    th, td { border-bottom: 1px solid #eee; padding: 3px 6px; text-align: left; white-space: nowrap; }
+    th { font-weight: 600; background: #fafafa; }
+    #runs tr.vertex-row { cursor: pointer; }
+    #runs tr.vertex-row:hover { background: #f3f3f3; }
+    #runs tr.current { background: #fff3c4; }
+    #runs tr.current:hover { background: #ffeaa0; }
+    #runs tr.triangle-start td { border-top: 2px solid #ccc; }
+    .tag { display: inline-block; font-size: 0.7rem; padding: 0 5px; border-radius: 8px; background: #eee; color: #444; margin-left: 2px; }
+    .tag.provoking { background: #ffe1b8; color: #7a4100; }
+    .tag.shared { background: #dbe8fb; color: #1d4e9a; }
+
+    /* A small square showing a color. */
+    .swatch { display: inline-block; width: 11px; height: 11px; border: 1px solid #888; vertical-align: -1px; margin-right: 4px; }
+
+    .bad { color: #c0262d; font-weight: 600; }
+    .ok { color: #1d7a34; }
+
+    /* The shader listings. Lines that change with your choices are marked. */
+    .code { font-size: 0.8rem; line-height: 1.45; margin: 0; overflow-x: auto; }
+    .code .comment { color: #6a737d; }
+    .code .changes { background: #e6efff; display: inline-block; min-width: 100%; }
+    .code .error { color: #c0262d; }
+    .shader-row > section { flex: 1; min-width: 320px; }
+
+    /* On narrow screens, put the panel above the main area. */
+    @media (max-width: 800px) {
+      body { flex-direction: column; height: auto; }
+      #panel { width: 100%; border-right: none; border-bottom: 1px solid #ddd; }
+      #main { overflow: visible; }
+    }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <h1>WebGL Vertex ID Playground</h1>
+    <p>Every time the vertex shader runs, <code>gl_VertexID</code> tells it
+      the number of the vertex the draw call fetched. Change the draw call
+      and the shaders, and watch which number each vertex gets and what the
+      fragment shader can (and cannot) see of it.</p>
+
+    <h2>1. Starting point</h2>
+    <select id="preset"></select>
+    <p id="preset-note" class="hint"></p>
+
+    <h2>2. Draw call</h2>
+    <fieldset class="draw">
+      <legend>Draw</legend>
+      <label><input type="radio" name="draw-kind" value="arrays" id="kind-arrays"> <code>drawArrays</code></label>
+      <label><input type="radio" name="draw-kind" value="elements" id="kind-elements"> <code>drawElements</code> (uses the index buffer)</label>
+
+      <div id="arrays-controls" class="grid">
+        <label for="arrays-first">first</label><input type="number" id="arrays-first" min="0" max="60" step="1">
+        <label for="arrays-count">count</label><input type="number" id="arrays-count" min="0" max="60" step="1">
+      </div>
+
+      <div id="elements-controls">
+        <div class="grid">
+          <label for="elements-count">count</label><input type="number" id="elements-count" min="0" max="60" step="1">
+        </div>
+        <p class="hint">Index buffer values (each one is a vertex number;
+          a wider gap after every 3, one triangle each):</p>
+        <div id="index-editor"></div>
+        <button id="index-add">Add index</button>
+        <button id="index-remove">Remove last</button>
+      </div>
+      <p class="hint" id="draw-hint"></p>
+    </fieldset>
+
+    <h2>3. Vertex shader: the color it outputs</h2>
+    <fieldset class="vs">
+      <legend><code>vColor =</code></legend>
+      <label><input type="radio" name="vs" value="aColor"> <code>aColor</code> (from the buffer)</label>
+      <label><input type="radio" name="vs" value="id"> <code>uPalette[gl_VertexID % 8]</code></label>
+      <label><input type="radio" name="vs" value="tri"> <code>uPalette[(gl_VertexID / 3) % 8]</code></label>
+      <label><input type="radio" name="vs" value="bary"> barycentric: <code>gl_VertexID % 3</code> → red, green or blue</label>
+      <p class="hint" id="vs-hint"></p>
+    </fieldset>
+
+    <h2>4. Fragment shader: how it receives vColor</h2>
+    <fieldset class="fs">
+      <legend><code>in vec3 vColor</code></legend>
+      <label><input type="radio" name="fs" value="smooth"> interpolated (the default)</label>
+      <label><input type="radio" name="fs" value="flat"> <code>flat</code>: one value per triangle</label>
+      <label><input type="radio" name="fs" value="edges"> edges: draw lines where a component is near 0</label>
+      <p class="hint" id="fs-hint"></p>
+    </fieldset>
+
+    <h2>5. Step through the vertices</h2>
+    <button id="step-prev">◀ Previous</button>
+    <button id="step-next">Next ▶</button>
+    <p id="step-label"></p>
+
+    <h2>Good to know</h2>
+    <ul class="hint">
+      <li><code>gl_VertexID</code> is the vertex number that was fetched:
+        <code>first + k</code> for <code>drawArrays</code>, and the value
+        <code>indices[k]</code> for <code>drawElements</code>.</li>
+      <li>The fragment shader has no vertex number. It only receives the
+        vertex shader's outputs.</li>
+      <li>WebGL 2 has no <code>gl_PrimitiveID</code> (a triangle number).
+        A <code>flat</code> output is the usual way to give a whole
+        triangle one value.</li>
+      <li>For a <code>flat</code> output, each triangle uses the value of
+        its last vertex, the <b>provoking vertex</b>. (An extension,
+        <code>WEBGL_provoking_vertex</code>, can switch this to the first
+        vertex; this tool keeps WebGL 2's default.)</li>
+      <li>Integer outputs (<code>int</code>, <code>uint</code>) must
+        always be declared <code>flat</code>.</li>
+    </ul>
+  </div>
+
+  <div id="main">
+    <section>
+      <h2>Memory: which vertex each step fetches</h2>
+      <div id="step-explain"></div>
+      <canvas id="memory"></canvas>
+    </section>
+
+    <div class="row">
+      <section>
+        <h2>Result (real WebGL 2)</h2>
+        <div id="result-wrap">
+          <canvas id="gl-canvas"></canvas>
+          <canvas id="overlay"></canvas>
+        </div>
+        <p id="legend"></p>
+        <p id="draw-report"></p>
+      </section>
+
+      <section id="inspector-section">
+        <h2>Fragment inspector</h2>
+        <div id="inspector"></div>
+      </section>
+    </div>
+
+    <section>
+      <h2>Vertex shader runs: one per step of the draw call</h2>
+      <p class="hint">Click a row to select that step. Rows with the same
+        <code>gl_VertexID</code> fetched the same vertex, so they get the same
+        inputs and the same outputs.</p>
+      <div id="runs"></div>
+    </section>
+
+    <div class="row shader-row">
+      <section>
+        <h2>Vertex shader</h2>
+        <pre id="vs-code" class="code"></pre>
+      </section>
+      <section>
+        <h2>Fragment shader</h2>
+        <pre id="fs-code" class="code"></pre>
+      </section>
+    </div>
+
+    <section>
+      <h2>The draw</h2>
+      <pre id="draw-code" class="code"></pre>
+    </section>
+  </div>
+
+  <!-- Load our program. It is placed at the end of <body> so that the
+       elements above already exist by the time the script runs. -->
+  <script src="index.js"></script>
+</body>
+</html>
