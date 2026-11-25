@@ -55,7 +55,7 @@
 //        fragment
 //      → fragment shader receives the interpolated vColor and lights it
 //
-// The sections below follow the same numbered order as example-cube.js.
+// The sections below are numbered 0-5, in the same order in all six files.
 
 
 // ---------------------------------------------------------------------
@@ -86,7 +86,7 @@ const gl = canvas.getContext('webgl2');
 //    the keywords changed. These comments still say "attribute" and
 //    "varying" for the ideas.)
 //
-//    NEW compared to example 1 (and example-cube.js): the color is no
+//    NEW compared to example 1: the color is no
 //    longer a uniform (one color for the whole cube). It is an ATTRIBUTE,
 //    so every vertex can carry its own color.
 //
@@ -209,8 +209,7 @@ gl.useProgram(program);
 // 2. CUBE GEOMETRY → BUFFER
 //
 //    One cube, 1 unit wide, CENTERED on the origin: every coordinate is
-//    -0.5 or +0.5. (In example-cube.js the cube sat on the ground at
-//    y = 0. Centering it makes it spin around its middle.)
+//    -0.5 or +0.5. Centering it makes it spin around its middle.
 //
 //    Each face = 2 triangles = 6 vertices, so 6 faces = 36 vertices.
 //    Each vertex now has 9 numbers:

@@ -508,3 +508,6 @@ five pages link their programs with no console errors.
   pixel-identical to its pre-port version (Tabs 1–4 at `draw(1.0)`, Tab 5
   rules 0–7 at four times, Tab 6 six menu pairs at two times). Diffs
   1→2, 2→3, 3→4 have the same size as before.
+- Same day, separate commit: removed the stale `example-cube.js`
+  references from all six `.js` files (that file was removed 2026-10-16).
+  The comments now stand on their own; the open issue is closed.

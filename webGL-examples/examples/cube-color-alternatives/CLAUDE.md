@@ -129,9 +129,4 @@ vertex) with the same options.
   the same angle.
 
 ## Open issues
-- The code comments in all five `.js` files refer to `example-cube.js`
-  ("the same numbered order as example-cube.js", "as in example-cube.js").
-  That file was removed on 2026-10-16. The comments should be reworded or
-  pointed at another example (cube-grid's `index.js` has the same
-  structure).
 - No quiz yet.

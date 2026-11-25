@@ -39,7 +39,6 @@
 // -----------------------
 // The whole cube is one color, CUBE_COLOR, and the color is a UNIFORM
 // (uColor): ONE value for the whole draw call, sent from JavaScript.
-// This is how example-cube.js colored its cubes.
 //
 // The vertex data holds only positions and normals. There is no color in
 // it at all. uColor is not a varying, so the rasterizer has nothing to
@@ -71,7 +70,7 @@
 //      → the fragment shader reads uColor directly and lights it
 //        (no vertex shader, no rasterizer, no interpolation involved)
 //
-// The sections below follow the same numbered order as example-cube.js.
+// The sections below are numbered 0-5, in the same order in all six files.
 
 
 // ---------------------------------------------------------------------
@@ -102,8 +101,8 @@ const gl = canvas.getContext('webgl2');
 //    the keywords changed. These comments still say "attribute" and
 //    "varying" for the ideas.)
 //
-//    As in example-cube.js, the color is a UNIFORM (uColor): one color
-//    for the whole cube. It is only used in the fragment shader.
+//    The color is a UNIFORM (uColor): one color for the whole cube. It
+//    is only used in the fragment shader.
 //
 //    The "// language=GLSL" and "/* glsl */" comments below tell your
 //    editor to color the string as GLSL (needs a GLSL plugin). They don't
@@ -224,8 +223,7 @@ gl.useProgram(program);
 // 2. CUBE GEOMETRY → BUFFER
 //
 //    One cube, 1 unit wide, CENTERED on the origin: every coordinate is
-//    -0.5 or +0.5. (In example-cube.js the cube sat on the ground at
-//    y = 0. Centering it makes it spin around its middle.)
+//    -0.5 or +0.5. Centering it makes it spin around its middle.
 //
 //    Each face = 2 triangles = 6 vertices, so 6 faces = 36 vertices.
 //    Each vertex has 6 numbers:

@@ -75,7 +75,7 @@
 // read each vertex's value directly. WebGL 2 has neither, so this
 // attribute trick is how it is done in the browser.)
 //
-// The sections below follow the same numbered order as example-cube.js.
+// The sections below are numbered 0-5, in the same order in all six files.
 
 
 // ---------------------------------------------------------------------
@@ -448,8 +448,7 @@ gl.useProgram(program);
 // 2. CUBE GEOMETRY → BUFFER
 //
 //    One cube, 1 unit wide, CENTERED on the origin: every coordinate is
-//    -0.5 or +0.5. (In example-cube.js the cube sat on the ground at
-//    y = 0. Centering it makes it spin around its middle.)
+//    -0.5 or +0.5. Centering it makes it spin around its middle.
 //
 //    Each face = 2 triangles = 6 vertices, so 6 faces = 36 vertices.
 //    We first write the cube EXACTLY as in example 4, 9 numbers per
