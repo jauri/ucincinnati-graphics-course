@@ -24,8 +24,8 @@ folder.
 ## WebGL version
 - **Target: WebGL 2** (`canvas.getContext('webgl2')`, GLSL ES 3.00 shaders
   with `#version 300 es`).
-- The three current examples (cube-grid, camera-move,
-  cube-color-alternatives) are still **WebGL 1** (`getContext('webgl')`,
+- cube-color-alternatives is WebGL 2 (ported 2026-11-24).
+- cube-grid and camera-move are still **WebGL 1** (`getContext('webgl')`,
   `attribute`/`varying`, `gl_FragColor`). Porting them is planned as a
   separate task. Their quizzes and exploration notes quote the code, so
   they must be updated with the port.

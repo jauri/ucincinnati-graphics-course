@@ -147,3 +147,8 @@ Still open:
 - The shader comments have terminology problems (noticed, not fixed). See
   the open issues in cube-grid's and camera-move's `CLAUDE.md`. Fix them
   with the WebGL 2 port or the next shader edit.
+
+## 2026-11-24: cube-color-alternatives ported to WebGL 2
+- All six tabs now use WebGL 2 (details in that example's `NOTES.md`).
+  cube-grid and camera-move are still WebGL 1; the root `CLAUDE.md`'s
+  "WebGL version" section is updated to match.

@@ -16,7 +16,7 @@
 //                              does the interpolation itself
 //   6-per-triangle-rules.js    same as 5, but even and odd triangles
 //                              each get their own rule, picked with
-//                              gl_VertexID (WebGL 2)
+//                              gl_VertexID
 //
 // THE BIG IDEA OF EXAMPLES 2, 3 AND 4
 // -----------------------------------
@@ -61,9 +61,11 @@
 // ---------------------------------------------------------------------
 // 0. Get a WebGL "context" from the <canvas> element in the HTML page.
 //    The context (gl) is the object we use to issue every WebGL command.
+//    We ask for 'webgl2': WebGL 2, which every current desktop and phone
+//    browser supports.
 // ---------------------------------------------------------------------
 const canvas = document.getElementById('c');
-const gl = canvas.getContext('webgl');
+const gl = canvas.getContext('webgl2');
 
 
 // ---------------------------------------------------------------------
@@ -71,11 +73,18 @@ const gl = canvas.getContext('webgl');
 //    Shaders are written in GLSL, a C-like language. We store the source
 //    code in JavaScript strings, then compile them for the GPU.
 //
-//    Three kinds of shader variables:
-//      attribute - a different value for every vertex (e.g. its position)
-//      uniform   - one value shared by every vertex AND every fragment
-//                  in a draw call
-//      varying   - passed from the vertex shader to the fragment shader
+//    Three kinds of shader variables, in WebGL 2 (GLSL ES 3.00) syntax:
+//      in (vertex shader)   - a different value for every vertex, read
+//                             from the buffer (an "attribute")
+//      uniform              - one value shared by every vertex AND every
+//                             fragment in a draw call
+//      out (vertex shader) / in (fragment shader)
+//                           - passed from the vertex shader to the
+//                             fragment shader (a "varying")
+//    (WebGL 1 spelled these attribute, uniform and varying, and you will
+//    see those keywords in older tutorials. The ideas are the same; only
+//    the keywords changed. These comments still say "attribute" and
+//    "varying" for the ideas.)
 //
 //    NEW compared to example 1 (and example-cube.js): the color is no
 //    longer a uniform (one color for the whole cube). It is an ATTRIBUTE,
@@ -87,17 +96,20 @@ const gl = canvas.getContext('webgl');
 // ---------------------------------------------------------------------
 
 // language=GLSL
-const vertexShaderSource = /* glsl */ `
-  attribute vec3 aPosition;   // vertex position (model space)
-  attribute vec3 aNormal;     // direction the face is pointing
-  attribute vec3 aColor;      // this vertex's color (red, green, blue: 0..1)
+const vertexShaderSource = /* glsl */ `#version 300 es
+  // ^ "#version 300 es" says "this is WebGL 2 GLSL". It must be the very
+  //   first line of the source, so it sits right after the backtick.
+
+  in vec3 aPosition;          // vertex position (model space)
+  in vec3 aNormal;            // direction the face is pointing
+  in vec3 aColor;             // this vertex's color (red, green, blue: 0..1)
 
   uniform mat4 uModel;        // rotates the cube (it spins over time)
   uniform mat4 uView;         // where the camera is and where it looks
   uniform mat4 uProjection;   // perspective: far things look smaller
 
-  varying vec3 vNormal;       // handed to the fragment shader
-  varying vec3 vColor;        // handed to the fragment shader
+  out vec3 vNormal;           // handed to the fragment shader
+  out vec3 vColor;            // handed to the fragment shader
 
   void main() {
     // Turn the normal the same way the cube is turned. The cube now
@@ -134,12 +146,17 @@ const vertexShaderSource = /* glsl */ `
 `;
 
 // language=GLSL
-const fragmentShaderSource = /* glsl */ `
+const fragmentShaderSource = /* glsl */ `#version 300 es
   precision mediump float;    // how accurate floating-point numbers are
                               // (medium is plenty)
 
-  varying vec3 vNormal;       // received from the vertex shader (interpolated)
-  varying vec3 vColor;        // received from the vertex shader (interpolated)
+  in vec3 vNormal;            // received from the vertex shader (interpolated)
+  in vec3 vColor;             // received from the vertex shader (interpolated)
+
+  // WebGL 2 has no built-in gl_FragColor. Instead we declare our own
+  // output, and whatever main() writes into it becomes this fragment's
+  // color.
+  out vec4 fragColor;
 
   void main() {
     // This runs once for EVERY FRAGMENT inside each triangle. vColor and
@@ -161,10 +178,10 @@ const fragmentShaderSource = /* glsl */ `
     // Keep 30% "ambient" light so faces in shadow aren't pure black.
     float light = 0.3 + 0.7 * brightness;
 
-    // gl_FragColor is the built-in output: this fragment's color. If the
-    // fragment passes the depth test, it becomes the pixel's color.
+    // fragColor is our output (declared above): this fragment's color. If
+    // the fragment passes the depth test, it becomes the pixel's color.
     // Multiplying the color by light darkens it on dim faces.
-    gl_FragColor = vec4(vColor * light, 1.0);   // 1.0 = fully opaque
+    fragColor = vec4(vColor * light, 1.0);      // 1.0 = fully opaque
   }
 `;
 

@@ -56,8 +56,7 @@
 
   <div class="caption">
       <h1>6. Per-triangle rules</h1>
-      <p>Same as tab 5, but now in <b>WebGL 2</b>, and every other triangle
-      uses a different rule. The vertex shader reads the built-in
+      <p>Same as tab 5, but every other triangle uses a different rule. The vertex shader reads the built-in
       <code>gl_VertexID</code> (0, 1, 2, …, 35) and computes the triangle
       number, <code>gl_VertexID / 3</code>. It passes that number on as a
       <b>flat</b> output, so the rasterizer does not interpolate it. The

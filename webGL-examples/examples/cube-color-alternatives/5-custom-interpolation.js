@@ -16,7 +16,7 @@
 //                              does the interpolation itself
 //   6-per-triangle-rules.js    same as 5, but even and odd triangles
 //                              each get their own rule, picked with
-//                              gl_VertexID (WebGL 2)
+//                              gl_VertexID
 //
 // HOW THIS ONE IS DIFFERENT
 // -------------------------
@@ -55,24 +55,24 @@
 //      barycentric coordinates (λ0, λ1, λ2). The rasterizer hands us the
 //      weights for free.
 //
-//   2. Give EVERY vertex of a triangle all THREE vertex colors. The three
-//      vertices carry identical values, and interpolating three identical
-//      values gives back that same value, so the colors reach the
-//      fragment shader unchanged. (Same reason the color in example 2
-//      never changed: it was interpolated too, but there was nothing to
-//      mix.)
+//   2. Give EVERY vertex of a triangle all THREE vertex colors, and mark
+//      them FLAT: "flat" tells the rasterizer NOT to interpolate them, so
+//      every fragment gets the values from one of the triangle's
+//      vertices. The three vertices carry identical values, so it doesn't
+//      matter which one, and the colors reach the fragment shader
+//      unchanged.
 //
 // HOW THE DATA TRAVELS THROUGH THE PIPELINE
 // -----------------------------------------
 //   aBary, aColor0, aColor1, aColor2 (attributes, one set per vertex)
 //      → vertex shader copies them into varyings
-//      → the RASTERIZER interpolates them: vBary becomes this fragment's
-//        weights, vColor0/1/2 come through unchanged
+//      → the RASTERIZER interpolates vBary: it becomes this fragment's
+//        weights. vColor0/1/2 are flat, so they come through unchanged
 //      → fragment shader calls interpolate(weights, colors), then lights it
 //
 // (Desktop OpenGL/Direct3D could do this with a GEOMETRY SHADER, which
 // sees a whole triangle at once. Newer APIs even let a fragment shader
-// read each vertex's value directly. WebGL has neither, so this
+// read each vertex's value directly. WebGL 2 has neither, so this
 // attribute trick is how it is done in the browser.)
 //
 // The sections below follow the same numbered order as example-cube.js.
@@ -81,9 +81,11 @@
 // ---------------------------------------------------------------------
 // 0. Get a WebGL "context" from the <canvas> element in the HTML page.
 //    The context (gl) is the object we use to issue every WebGL command.
+//    We ask for 'webgl2': WebGL 2, which every current desktop and phone
+//    browser supports.
 // ---------------------------------------------------------------------
 const canvas = document.getElementById('c');
-const gl = canvas.getContext('webgl');
+const gl = canvas.getContext('webgl2');
 
 
 // ---------------------------------------------------------------------
@@ -91,15 +93,23 @@ const gl = canvas.getContext('webgl');
 //    Shaders are written in GLSL, a C-like language. We store the source
 //    code in JavaScript strings, then compile them for the GPU.
 //
-//    Three kinds of shader variables:
-//      attribute - a different value for every vertex (e.g. its position)
-//      uniform   - one value shared by every vertex AND every fragment
-//                  in a draw call
-//      varying   - passed from the vertex shader to the fragment shader
+//    Three kinds of shader variables, in WebGL 2 (GLSL ES 3.00) syntax:
+//      in (vertex shader)   - a different value for every vertex, read
+//                             from the buffer (an "attribute")
+//      uniform              - one value shared by every vertex AND every
+//                             fragment in a draw call
+//      out (vertex shader) / in (fragment shader)
+//                           - passed from the vertex shader to the
+//                             fragment shader (a "varying")
+//    (WebGL 1 spelled these attribute, uniform and varying, and you will
+//    see those keywords in older tutorials. The ideas are the same; only
+//    the keywords changed. These comments still say "attribute" and
+//    "varying" for the ideas.)
 //
 //    NEW compared to example 4: instead of one aColor per vertex, each
 //    vertex carries its barycentric coordinates (aBary) and the colors
-//    of ALL THREE vertices of its triangle (aColor0, aColor1, aColor2).
+//    of ALL THREE vertices of its triangle (aColor0, aColor1, aColor2),
+//    passed on as FLAT varyings (not interpolated).
 //    The fragment shader gets a uniform, uMode, that picks the interpolation
 //    rule, and a uniform, uTime, the seconds since the page loaded (only
 //    the animated rules, 5, 6 and 7, use it).
@@ -110,14 +120,17 @@ const gl = canvas.getContext('webgl');
 // ---------------------------------------------------------------------
 
 // language=GLSL
-const vertexShaderSource = /* glsl */ `
-  attribute vec3 aPosition;   // vertex position (model space)
-  attribute vec3 aNormal;     // direction the face is pointing
-  attribute vec3 aBary;       // (1,0,0), (0,1,0) or (0,0,1): this vertex's
+const vertexShaderSource = /* glsl */ `#version 300 es
+  // ^ "#version 300 es" says "this is WebGL 2 GLSL". It must be the very
+  //   first line of the source, so it sits right after the backtick.
+
+  in vec3 aPosition;          // vertex position (model space)
+  in vec3 aNormal;            // direction the face is pointing
+  in vec3 aBary;              // (1,0,0), (0,1,0) or (0,0,1): this vertex's
                               // barycentric coordinates
-  attribute vec3 aColor0;     // color of the triangle's 1st vertex
-  attribute vec3 aColor1;     // color of the triangle's 2nd vertex
-  attribute vec3 aColor2;     // color of the triangle's 3rd vertex
+  in vec3 aColor0;            // color of the triangle's 1st vertex
+  in vec3 aColor1;            // color of the triangle's 2nd vertex
+  in vec3 aColor2;            // color of the triangle's 3rd vertex
                               // (all 3 vertices of a triangle carry the
                               // SAME three colors)
 
@@ -125,11 +138,11 @@ const vertexShaderSource = /* glsl */ `
   uniform mat4 uView;         // where the camera is and where it looks
   uniform mat4 uProjection;   // perspective: far things look smaller
 
-  varying vec3 vNormal;       // handed to the fragment shader
-  varying vec3 vBary;         // handed on, becomes the fragment's weights
-  varying vec3 vColor0;       // handed on unchanged (see below)
-  varying vec3 vColor1;
-  varying vec3 vColor2;
+  out vec3 vNormal;           // handed to the fragment shader
+  out vec3 vBary;             // handed on, becomes the fragment's weights
+  flat out vec3 vColor0;      // handed on NOT interpolated (see below)
+  flat out vec3 vColor1;
+  flat out vec3 vColor2;
 
   void main() {
     // Turn the normal the same way the cube is turned. The cube now
@@ -141,7 +154,8 @@ const vertexShaderSource = /* glsl */ `
     // would need the "inverse transpose" instead, but we don't.)
     vNormal = normalize(mat3(uModel) * aNormal);
 
-    // The rasterizer will interpolate every varying across the triangle using
+    // The rasterizer will interpolate every varying (except flat ones,
+    // like the colors below) across the triangle using
     // barycentric weights (λ0, λ1, λ2). We use that to our advantage:
     //
     // vBary: the three vertices send (1,0,0), (0,1,0) and (0,0,1). The
@@ -149,9 +163,12 @@ const vertexShaderSource = /* glsl */ `
     // = (λ0, λ1, λ2). So the fragment shader receives its own weights.
     vBary = aBary;
 
-    // vColor0/1/2: all three vertices send the SAME value, and
-    // λ0·C + λ1·C + λ2·C = (λ0 + λ1 + λ2)·C = C. Interpolating changes
-    // nothing, so these arrive in the fragment shader exactly as given.
+    // vColor0/1/2 are FLAT: the rasterizer does not interpolate them.
+    // Every fragment of the triangle gets the values from one of its
+    // vertices, and all three vertices send the SAME values, so it does
+    // not matter which one. (Even without flat this would work:
+    // λ0·C + λ1·C + λ2·C = (λ0 + λ1 + λ2)·C = C. But flat says what we
+    // mean: "pass these on, don't mix them.")
     vColor0 = aColor0;
     vColor1 = aColor1;
     vColor2 = aColor2;
@@ -166,18 +183,23 @@ const vertexShaderSource = /* glsl */ `
 `;
 
 // language=GLSL
-const fragmentShaderSource = /* glsl */ `
+const fragmentShaderSource = /* glsl */ `#version 300 es
   precision mediump float;    // how accurate floating-point numbers are
                               // (medium is plenty)
 
-  varying vec3 vNormal;       // received from the vertex shader (interpolated)
-  varying vec3 vBary;         // this fragment's weights (λ0, λ1, λ2)
-  varying vec3 vColor0;       // the triangle's three vertex colors,
-  varying vec3 vColor1;       // unchanged by the rasterizer
-  varying vec3 vColor2;
+  in vec3 vNormal;            // received from the vertex shader (interpolated)
+  in vec3 vBary;              // this fragment's weights (λ0, λ1, λ2)
+  flat in vec3 vColor0;       // the triangle's three vertex colors,
+  flat in vec3 vColor1;       // not interpolated by the rasterizer
+  flat in vec3 vColor2;       // ("flat" must match the vertex shader)
 
   uniform int uMode;          // which interpolation rule: set from the menu
   uniform float uTime;        // seconds since the page loaded (rules 5, 6, 7)
+
+  // WebGL 2 has no built-in gl_FragColor. Instead we declare our own
+  // output, and whatever main() writes into it becomes this fragment's
+  // color.
+  out vec4 fragColor;
 
   // -------------------------------------------------------------------
   // interpolate(): THE INTERPOLATION RULE. This is the part to experiment with.
@@ -324,8 +346,9 @@ const fragmentShaderSource = /* glsl */ `
       float secondsPerTurn = 3.0;
       float turns = uTime / secondsPerTurn;
 
-      // Whose turn: 0, 1, 2, 0, 1, 2, ...
-      float k = mod(floor(turns), 3.0);
+      // Whose turn: 0, 1, 2, 0, 1, 2, ...  (int() makes it a whole
+      // number we can use as an array index below)
+      int k = int(mod(floor(turns), 3.0));
 
       // How far into this turn: 0 ... 1. Then "up and back down":
       // 0 at the start, 1 halfway, 0 at the end.
@@ -333,12 +356,14 @@ const fragmentShaderSource = /* glsl */ `
       float upAndDown = 1.0 - abs(2.0 * progress - 1.0);
       float T = 0.5 + 0.5 * upAndDown;    // 0.5 ... 1.0 ... 0.5
 
-      // Pick vertex k's weight and color. (WebGL 1 does not reliably let
-      // us write b[k] when k changes while the program runs, so we use ifs.)
-      float lambdaK = b.z;
-      vec3 colorK = c2;
-      if (k < 0.5)      { lambdaK = b.x; colorK = c0; }
-      else if (k < 1.5) { lambdaK = b.y; colorK = c1; }
+      // Pick vertex k's weight and color. b[k] reads one part of a vector
+      // by number: b[0] = b.x, b[1] = b.y, b[2] = b.z. For the colors we
+      // first put c0, c1, c2 in an array so we can do the same.
+      // (WebGL 1 did not reliably allow an index that changes while the
+      // program runs; WebGL 2 does.)
+      vec3 corners[3] = vec3[3](c0, c1, c2);
+      float lambdaK = b[k];
+      vec3 colorK = corners[k];
 
       if (lambdaK >= 1.0 - T) return colorK;            // k's territory
 
@@ -392,10 +417,10 @@ const fragmentShaderSource = /* glsl */ `
     // Keep 30% "ambient" light so faces in shadow aren't pure black.
     float light = 0.3 + 0.7 * brightness;
 
-    // gl_FragColor is the built-in output: this fragment's color. If the
-    // fragment passes the depth test, it becomes the pixel's color.
+    // fragColor is our output (declared above): this fragment's color. If
+    // the fragment passes the depth test, it becomes the pixel's color.
     // Multiplying the color by light darkens it on dim faces.
-    gl_FragColor = vec4(color * light, 1.0);    // 1.0 = fully opaque
+    fragColor = vec4(color * light, 1.0);       // 1.0 = fully opaque
   }
 `;
 
@@ -646,7 +671,7 @@ connectAttribute('aBary',     6);    // λ0, λ1, λ2
 connectAttribute('aColor0',   9);    // 1st vertex's color
 connectAttribute('aColor1',  12);    // 2nd vertex's color
 connectAttribute('aColor2',  15);    // 3rd vertex's color
-// (WebGL guarantees at least 8 attributes, so 6 is fine.)
+// (WebGL 2 guarantees at least 16 attributes, so 6 is fine.)
 
 // Look up where each uniform lives so we can set it later.
 // Unlike attributes, uniforms don't come from the buffer: we send their

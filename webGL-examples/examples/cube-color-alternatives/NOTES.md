@@ -493,3 +493,18 @@ five pages link their programs with no console errors.
   cycle, reusing rule 6's up-and-down timer, so the black edges grow
   inward until the triangle is black, then recede. Rule 4 left unchanged
   as the static version.
+
+## 2026-11-24: whole set ported to WebGL 2
+- Tabs 1–5 ported the way Tab 6 already was: `getContext('webgl2')`,
+  `#version 300 es` (with a comment on why it sits right after the
+  backtick), `in`/`out`, `out vec4 fragColor`. Section 1's list of
+  variable kinds now uses the WebGL 2 keywords and says WebGL 1 spelled
+  them attribute/varying. Done with a script so Tabs 1–4 stay in sync.
+- Decided with the instructor: Tab 5's corner colors become `flat`
+  varyings; rule 6 uses `b[k]` and a `corners[3]` array instead of ifs;
+  no VAO (smallest port). Tab 6 dropped its "move to WebGL 2" header
+  point, so `diff 5 6` now shows only the triangle-ID idea.
+- Checked: all six pages compile and link as WebGL 2. Each tab is
+  pixel-identical to its pre-port version (Tabs 1–4 at `draw(1.0)`, Tab 5
+  rules 0–7 at four times, Tab 6 six menu pairs at two times). Diffs
+  1→2, 2→3, 3→4 have the same size as before.

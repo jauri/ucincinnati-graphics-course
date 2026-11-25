@@ -1,8 +1,9 @@
 # Example: ways to color a cube (cube-color-alternatives)
 
 Six pages, linked by a tab bar. Each shows the same rotating, lit cube
-colored a different way. Tabs 1–5 are WebGL 1 for now (see the root
-`CLAUDE.md`); Tab 6 is WebGL 2. The
+colored a different way. All six tabs are WebGL 2
+(`getContext('webgl2')`, `#version 300 es` right after the backtick,
+`in`/`out`, `out vec4 fragColor`; no VAO). Ported 2026-11-24. The
 original plan and the build history are in `NOTES.md`.
 
 **Main teaching point:** how a cube is colored is decided by the per-vertex
@@ -18,7 +19,7 @@ happens in every tab; you can only *see* it in Tab 4.
 | `3-face-colors.html` / `.js` | One color per face: front RED, back CYAN, top GREEN, bottom MAGENTA, right BLUE, left YELLOW (opposite faces are complementary). |
 | `4-vertex-interpolation.html` / `.js` | RGB color cube: cube corner (x,y,z) → color (x+0.5, y+0.5, z+0.5), named BLACK…WHITE. |
 | `5-custom-interpolation.html` / `.js` | Same colors as Tab 4, interpolated in the fragment shader, with a dropdown of interpolation rules. |
-| `6-per-triangle-rules.html` / `.js` | Tab 5 ported to WebGL 2; even and odd triangles each get their own rule (two dropdowns), chosen with `gl_VertexID / 3` passed as `flat out int vTriangle`. |
+| `6-per-triangle-rules.html` / `.js` | Same as Tab 5, but even and odd triangles each get their own rule (two dropdowns), chosen with `gl_VertexID / 3` passed as `flat out int vTriangle`. |
 
 Each `.js` file is a complete program on its own. About 95% of the code is
 duplicated **on purpose**, so a student can read one file top to bottom and
@@ -37,7 +38,7 @@ Each neighboring diff is meant to show exactly one idea:
 | `diff 2-solid-attribute.js 3-face-colors.js` | header, section-2 color comments, color constants, color column |
 | `diff 3-face-colors.js 4-vertex-interpolation.js` | same as above |
 | `diff 4-vertex-interpolation.js 5-custom-interpolation.js` | everything that moves interpolation into the shader |
-| `diff 5-custom-interpolation.js 6-per-triangle-rules.js` | the WebGL 1 → 2 port (context, `#version 300 es`, `in`/`out`, `fragColor`) plus the triangle-ID logic and the two rule uniforms; buffer data and rules unchanged |
+| `diff 5-custom-interpolation.js 6-per-triangle-rules.js` | the triangle-ID logic (`gl_VertexID`, `flat out int vTriangle`) and the two rule uniforms; buffer data and rules unchanged |
 
 - **Files 2, 3 and 4 share all code and all comments outside the header
   and section 2.** Any change there must be made identically in all three.
@@ -69,9 +70,9 @@ vertex) with the same options.
   `aBary`, `aColor0`, `aColor1`, `aColor2`. Stride is 72 bytes.
 - The six attributes are hooked up by a small `connectAttribute(name,
   offsetInFloats)` helper.
-- No `flat` and no extensions (WebGL 1). The corner colors reach the
-  fragment shader unchanged because all 3 vertices of a triangle carry the
-  same values. **Revisit when porting to WebGL 2**, which has `flat`.
+- `vColor0/1/2` are `flat` varyings. All 3 vertices of a triangle carry
+  the same values, so it does not matter which vertex `flat` takes them
+  from; the comments note it would work even without `flat`.
 - Fragment shader: `uniform int uMode` picks a case in
   `interpolate(b, c0, c1, c2)`: 0 linear, 1 nearest vertex, 2 sharpened
   (pow 4, renormalized), 3 bands (floor to 1/4 steps, renormalized),
@@ -87,7 +88,8 @@ vertex) with the same options.
   fragments with λk ≥ 1 − T; everything else is rule 1. T goes
   0.5 → 1 → 0.5 during each 3 s turn (up and back down, no jump between
   turns). T starts at 0.5 because k already owns λk > 1/2 under plain
-  nearest vertex. λk/ck picked with ifs, not b[k] (WebGL 1 indexing).
+  nearest vertex. `int k`; λk = `b[k]`, ck = `corners[k]` from
+  `vec3 corners[3] = vec3[3](c0, c1, c2)` (WebGL 2 dynamic indexing).
 - Rule 7 (growing wireframe): rule 4 with a moving threshold. Threshold =
   mix(0.02, 1/3, upAndDown), same 0 → 1 → 0 triangle wave as rule 6, 4 s
   per cycle. The black edges grow inward to the center (min λ = 1/3) and
@@ -102,16 +104,13 @@ vertex) with the same options.
   warning (see Terminology in the root `CLAUDE.md`).
 
 ## Tab 6 details
-- WebGL 2: `getContext('webgl2')`, `#version 300 es` right after the
-  backtick, `in`/`out`, `out vec4 fragColor`.
 - Vertex shader: `flat out int vTriangle = gl_VertexID / 3` (0…11). Only
   valid because of `drawArrays` with no index buffer.
 - Fragment shader: `uniform int uModeEven, uModeOdd`;
   `int mode = (vTriangle % 2 == 0) ? uModeEven : uModeOdd;` then
   `interpolate(mode, b, c0, c1, c2)`. Each face = one even + one odd
   triangle.
-- Same 18-float buffer and `BARY_COORDS` as Tab 5. Rule 6 keeps its ifs
-  (comment notes WebGL 2 would allow `b[int(k)]`).
+- Same 18-float buffer, `BARY_COORDS`, flat colors and rules as Tab 5.
 - Verified 2026-11-24: with both menus on the same rule, Tab 6 is
   pixel-identical to Tab 5 (rules 0, 4, 6 at `draw(1.0, 0.5)`); all six
   pages load with no console errors and all tab links resolve.
@@ -122,7 +121,7 @@ vertex) with the same options.
 - Open `1-solid-uniform.html` first and click through the tabs.
 - To compare two tabs pixel by pixel: load both pages in same-origin
   iframes, give each canvas a fixed CSS size (e.g. 300×300), call
-  `draw(1.0)` (`draw(1.0, 0)` in Tabs 5 and 6; Tab 6's context is
+  `draw(1.0)` (`draw(1.0, 0)` in Tabs 5 and 6; every context is
   `'webgl2'`), then `gl.readPixels` right away (same task, so the drawing
   buffer is still there).
 - Last verified 2026-10-15: all five pages compile and link with no console
