@@ -1,7 +1,7 @@
 # Example: ways to color a cube (cube-color-alternatives)
 
-Six pages, linked by a tab bar. Each shows the same rotating, lit cube
-colored a different way. All six tabs are WebGL 2
+Seven pages, linked by a tab bar. Each shows the same rotating, lit cube
+colored a different way. All seven tabs are WebGL 2
 (`getContext('webgl2')`, `#version 300 es` right after the backtick,
 `in`/`out`, `out vec4 fragColor`; no VAO). Ported 2026-11-24. The
 original plan and the build history are in `NOTES.md`.
@@ -20,6 +20,9 @@ happens in every tab; you can only *see* it in Tab 4.
 | `4-vertex-interpolation.html` / `.js` | RGB color cube: cube corner (x,y,z) → color (x+0.5, y+0.5, z+0.5), named BLACK…WHITE. |
 | `5-custom-interpolation.html` / `.js` | Same colors as Tab 4, interpolated in the fragment shader, with a dropdown of interpolation rules. |
 | `6-per-triangle-rules.html` / `.js` | Same as Tab 5, but even and odd triangles each get their own rule (two dropdowns), chosen with `gl_VertexID / 3` passed as `flat out int vTriangle`. |
+| `7-texture.html` / `.js` | Copy of Tab 3 with the color replaced by texture coordinates: a brick image on every face (whole image per face, lighting kept). Added 2026-11-24. |
+| `bricks-texture.js` | `const BRICKS_DATA_URL`: bricks.png scaled to 512×512 JPEG (q80), base64. Loaded by page 7 before `7-texture.js`. |
+| `bricks.png` | Original 1024×1024 texture (copied from `computer-graphics-tests/blink-p3/models/`). Not loaded by the page; kept as the source for `bricks-texture.js`. |
 
 Each `.js` file is a complete program on its own. About 95% of the code is
 duplicated **on purpose**, so a student can read one file top to bottom and
@@ -39,22 +42,25 @@ Each neighboring diff is meant to show exactly one idea:
 | `diff 3-face-colors.js 4-vertex-interpolation.js` | same as above |
 | `diff 4-vertex-interpolation.js 5-custom-interpolation.js` | everything that moves interpolation into the shader |
 | `diff 5-custom-interpolation.js 6-per-triangle-rules.js` | the triangle-ID logic (`gl_VertexID`, `flat out int vTriangle`) and the two rule uniforms; buffer data and rules unchanged |
+| `diff 3-face-colors.js 7-texture.js` | header, color → texture coordinate (shaders, section 2 data, 9 → 8 floats, `aTexCoord` pointer), sampler uniform and texture setup, one varying name in a draw comment |
 
 - **Files 2, 3 and 4 share all code and all comments outside the header
   and section 2.** Any change there must be made identically in all three.
 - File 1 is a copy of file 2 with the uniform changes, so shared changes
   (matrices, draw, animate, section 1's variable list) usually belong in it
   too.
-- All 12 shader strings carry the GLSL markers (`// language=GLSL`,
+- File 7 is a copy of file 3: shared changes to files 2–4 (matrices,
+  draw, animate, lighting) belong in file 7 too.
+- All 14 shader strings carry the GLSL markers (`// language=GLSL`,
   `/* glsl */`; see the root `CLAUDE.md`), and section 1's header ends
-  with the same note about them in all six files. Keep both identical
+  with the same note about them in all seven files. Keep both identical
   across files so they never show up in the diffs.
 - File 5 started as a copy of file 4 and shares the matrix, draw and
   animate code. File 6 started as a copy of file 5: keep their rules
   (`interpolate()` bodies), section 2 and section 3 identical, so a
   change to a rule in Tab 5 belongs in Tab 6 too (with `uMode` → `mode`).
-- Every `.js` header lists all six files (same text in all six), and
-  says "example N of 6".
+- Every `.js` header lists all seven files (same text in all seven), and
+  says "example N of 7".
 - For a shared change, edit each file by hand or with a small script, then
   check with the diffs above.
 
@@ -62,7 +68,8 @@ The HTML pages differ only in the highlighted tab (`class="current"`), the
 `<title>`, the header comment's page number, the caption `<div>`, and the
 `<script src>`. Page 5 also has the interpolation-rule `<select>` and its
 CSS; page 6 has two (`modeEven`, `modeOdd`, defaults Linear / Nearest
-vertex) with the same options.
+vertex) with the same options. Page 7 also loads `bricks-texture.js`
+before its program.
 
 ## Tab 5 details
 - Section 2 keeps Tab 4's exact 9-float `cubeVertices` array. A loop
@@ -116,6 +123,25 @@ vertex) with the same options.
   pages load with no console errors and all tab links resolve.
 - Idea not built: compute `aBary` from `gl_VertexID % 3` and drop it
   from the buffer (possible Tab 7 or exercise).
+
+## Tab 7 details
+- 8 floats per vertex: pos, normal, `aTexCoord` (u, v). Each face maps
+  (0,0) to the cube corner that is bottom-left seen from outside (+y up
+  for the sides; −z up for the top, +z up for the bottom), so the bricks
+  are upright on the four side faces.
+- Fragment shader: `uniform sampler2D uTexture`;
+  `fragColor = vec4(texture(uTexture, vTexCoord).rgb * light, 1.0)`.
+- Texture setup sits at the end of section 2: unit 0, a 1×1 gray
+  placeholder until the image loads, then in `image.onload`:
+  `UNPACK_FLIP_Y_WEBGL`, `texImage2D`, `generateMipmap`,
+  `LINEAR_MIPMAP_LINEAR` / `LINEAR`. Wrap left at the default REPEAT
+  (coordinates are only 0 or 1). `gl.uniform1i(uTexture, 0)` is set once
+  at setup.
+- Why the data URL: on `file://`, `texImage2D` with an `<img>` from disk
+  throws a SecurityError (each file is its own origin). A data-URL image
+  is same-origin, so double-clicking still works.
+- Ideas not built: repeat slider (scale texcoords, show REPEAT), a
+  filtering menu (NEAREST / LINEAR / mipmaps), texture × Tab 4 colors.
 
 ## Testing (beyond the root `CLAUDE.md`)
 - Open `1-solid-uniform.html` first and click through the tabs.

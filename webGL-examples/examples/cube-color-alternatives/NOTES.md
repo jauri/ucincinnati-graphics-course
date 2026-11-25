@@ -511,3 +511,22 @@ five pages link their programs with no console errors.
 - Same day, separate commit: removed the stale `example-cube.js`
   references from all six `.js` files (that file was removed 2026-10-16).
   The comments now stand on their own; the open issue is closed.
+
+## 2026-11-24: Tab 7, a brick texture
+- New `7-texture.html` / `.js`, a copy of Tab 3 where each vertex's
+  color (r, g, b) becomes a texture coordinate (u, v), so
+  `diff 3-face-colors.js 7-texture.js` shows only the texture idea.
+  Decided with the instructor: base on Tab 3, whole image per face,
+  keep the lighting.
+- The texture is the instructor's bricks.png (from
+  `computer-graphics-tests/blink-p3/models/`), copied into the folder.
+  WebGL rejects images from disk on `file://` pages, so the page loads
+  `bricks-texture.js` instead: the image scaled to 512×512 JPEG and
+  stored as a base64 data URL (~135 KB). The instructor chose this so
+  double-clicking keeps working.
+- All six other pages gained a "7. Texture" tab, and every `.js` header
+  now lists seven files ("example N of 7", "all seven files").
+- Checked on a local server: all seven pages link with no GL errors,
+  every tab bar has 7 working links, and the bricks show upright on
+  the side faces.
+

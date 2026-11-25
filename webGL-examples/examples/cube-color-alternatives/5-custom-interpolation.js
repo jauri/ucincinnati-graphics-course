@@ -2,7 +2,7 @@
 //  Ways to Color a Cube - 5: THE FRAGMENT SHADER DOES ITS OWN INTERPOLATION
 // =====================================================================
 //
-// This is example 5 of 6 in "Ways to Color a Cube":
+// This is example 5 of 7 in "Ways to Color a Cube":
 //
 //   1-solid-uniform.js         ONE color for the whole cube, sent as a
 //                              UNIFORM
@@ -17,6 +17,9 @@
 //   6-per-triangle-rules.js    same as 5, but even and odd triangles
 //                              each get their own rule, picked with
 //                              gl_VertexID
+//   7-texture.js               like 3, but each vertex carries a
+//                              TEXTURE COORDINATE instead of a color,
+//                              and every face shows a brick image
 //
 // HOW THIS ONE IS DIFFERENT
 // -------------------------
@@ -75,7 +78,7 @@
 // read each vertex's value directly. WebGL 2 has neither, so this
 // attribute trick is how it is done in the browser.)
 //
-// The sections below are numbered 0-5, in the same order in all six files.
+// The sections below are numbered 0-5, in the same order in all seven files.
 
 
 // ---------------------------------------------------------------------
