@@ -1,0 +1,250 @@
+<!doctype html>
+<!--
+  Cube color code explorer.
+  Left: the whole program of "Ways to Color a Cube", tab 5
+  (5-custom-interpolation.js) or, with ?tab=6, tab 6
+  (6-per-triangle-rules.js), exactly as it is in the example folder.
+  Right: the same cube, drawn with the same shaders, plus a trace of one
+  fragment through the code.
+  Open this file directly in a browser; no server is needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube Color Code Explorer</title>
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --panel: #252526;
+      --panel-2: #2d2d30;
+      --text: #ddd;
+      --dim: #8a8a8a;
+      --comment: #6a9955;
+      --accent: #4fc1ff;
+      --ran: #3a3d1e;
+      --ran-bar: #e2c541;
+      --flash: #264f78;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    header { padding: 10px 16px; background: #111; }
+    header h1 { font-size: 1.15rem; margin: 0 0 4px; }
+    header p { margin: 0; color: #bbb; max-width: 110ch; line-height: 1.4; }
+    /* The tab switch: two plain links that reload the page with ?tab=5 or ?tab=6. */
+    .tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 8px; }
+    .tabs a {
+      padding: 5px 12px; border-radius: 6px; text-decoration: none;
+      background: #2a2a2a; color: #aaa; font-size: 0.92rem;
+    }
+    .tabs a:hover { color: #fff; }
+    .tabs a.current { background: #3b4f63; color: #fff; font-weight: bold; }
+    [hidden] { display: none !important; }
+    a { color: var(--accent); }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.92em; }
+
+    /* Two columns: the code (wide) and the cube + trace (fixed width). */
+    main {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 480px);
+    }
+    @media (max-width: 900px) {
+      main { display: block; }
+      #codePanel { height: 70vh; }
+    }
+
+    /* ---- Left: the code panel ---- */
+    #codePanel { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #333; }
+    .code-head {
+      display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+      padding: 6px 12px; background: var(--panel-2); font-size: 0.9rem;
+    }
+    .code-head .file { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: bold; }
+    .code-head .legend { color: var(--dim); }
+    .code-head .spacer { flex: 1; }
+    button, select {
+      font: inherit; font-size: 0.9rem;
+      background: #3a3a3d; color: var(--text);
+      border: 1px solid #555; border-radius: 4px; padding: 3px 8px;
+    }
+    button:hover { background: #48484c; }
+    #code {
+      flex: 1; overflow: auto; background: var(--panel);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 12.5px; line-height: 1.45;
+      padding: 4px 0 40vh;
+    }
+    .line { display: flex; white-space: pre; border-left: 3px solid transparent; }
+    .line .ln { flex: 0 0 4.2em; text-align: right; padding-right: 1em; color: #5a5a5a; user-select: none; }
+    .line .src { flex: 1; }
+    .line .cm { color: var(--comment); }
+    /* Lines that can be shown on the cube: underlined, clickable. */
+    .line.linked .src { text-decoration: underline dotted var(--accent); text-underline-offset: 3px; cursor: pointer; }
+    .line.linked:hover { background: #2f3640; }
+    .line.linked .tag {
+      color: var(--accent); font-family: system-ui, sans-serif; font-size: 11px;
+      padding: 0 8px; opacity: 0.75; cursor: pointer;
+    }
+    .line.active-overlay { background: #23384a; }
+    /* Lines the traced fragment ran through. */
+    .line.ran { background: var(--ran); border-left-color: var(--ran-bar); }
+    .line.flash { background: var(--flash) !important; transition: background 0.2s; }
+    /* Fold rows: one per section of the file. */
+    .fold {
+      font-family: system-ui, sans-serif; font-size: 12.5px;
+      padding: 3px 12px; margin: 2px 0; cursor: pointer;
+      background: #333337; color: #ccc; user-select: none;
+    }
+    .fold:hover { background: #3c3c41; }
+    .fold .count { color: var(--dim); }
+    .sec-body.folded { display: none; }
+
+    /* ---- Right: cube, controls, trace ---- */
+    aside { overflow: auto; padding: 10px 14px 24px; }
+    .canvasWrap { position: relative; width: 100%; aspect-ratio: 1 / 1; background: #1f1f1f; }
+    .canvasWrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #c { cursor: crosshair; }
+    #overlay { pointer-events: none; }
+    #overlayNote {
+      font-size: 0.88rem; line-height: 1.4; background: #23384a; padding: 6px 10px; margin-top: 6px;
+      border-radius: 4px;
+    }
+    #overlayNote[hidden] { display: none; }
+    .controls { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin: 10px 0; font-size: 0.92rem; }
+    .controls label { font-weight: bold; }
+    .controls select { width: 100%; }
+    .timeRow { display: flex; gap: 8px; align-items: center; }
+    .timeRow input { flex: 1; }
+    .timeRow .t { font-family: ui-monospace, Menlo, Consolas, monospace; min-width: 5.5em; text-align: right; }
+    .uniforms { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.82rem; color: #bbb; grid-column: 1 / -1; }
+
+    #trace h2 { font-size: 1rem; margin: 14px 0 6px; }
+    #trace .hint { color: var(--dim); font-size: 0.9rem; margin: 4px 0; line-height: 1.4; }
+    .step { background: var(--panel); border-radius: 6px; padding: 7px 10px; margin: 8px 0; }
+    .step h3 { font-size: 0.9rem; margin: 0 0 4px; color: #fff; }
+    .step .what { font-size: 0.86rem; color: #bbb; margin: 0 0 5px; line-height: 1.4; }
+    .row { display: flex; gap: 8px; align-items: baseline; font-size: 0.86rem; padding: 2px 0; }
+    .row .expr { flex: 1; font-family: ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+    .row .expr b { color: #fff; }
+    .row.result .expr { color: #fff; }
+    .ln-link {
+      flex: 0 0 auto; font-size: 0.75rem; padding: 0 6px; border-radius: 3px;
+      background: transparent; color: var(--accent); border: 1px solid #3c5a70;
+    }
+    .swatch {
+      display: inline-block; width: 1.05em; height: 1.05em; vertical-align: -0.18em;
+      border: 1px solid #888; border-radius: 3px; margin: 0 2px;
+    }
+    .ok { color: #7ed37e; }
+    .warn { color: #e7a64a; }
+    details { margin-top: 14px; font-size: 0.9rem; line-height: 1.45; }
+    details summary { cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Cube color code explorer: custom interpolation and per-triangle rules</h1>
+    <nav class="tabs">
+      <a href="?tab=5" id="tab5Link">Tab 5: custom interpolation</a>
+      <a href="?tab=6" id="tab6Link">Tab 6: per-triangle rules</a>
+    </nav>
+    <p>On the left is the whole program from
+      <a id="tabPageLink" href="../../webGL-examples/examples/cube-color-alternatives/5-custom-interpolation.html">tab 5 of “Ways to Color a Cube”</a>.
+      The cube on the right uses its shaders. <b>Click the cube</b> to follow one fragment through the code.
+      <b>Click an underlined line</b> to see what it means on the cube.</p>
+  </header>
+
+  <main>
+    <!-- Left column: the code. index.js fills #code. -->
+    <section id="codePanel">
+      <div class="code-head">
+        <span class="file" id="fileName"></span>
+        <span class="legend" id="codeLegend"></span>
+        <span class="spacer"></span>
+        <button id="unfoldAll">Unfold all</button>
+        <button id="foldAll">Fold all</button>
+      </div>
+      <div id="code"></div>
+    </section>
+
+    <!-- Right column: the cube, its controls, and the fragment trace. -->
+    <aside>
+      <div class="canvasWrap">
+        <canvas id="c"></canvas>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div id="overlayNote" hidden></div>
+
+      <div class="controls">
+        <!-- Tab 5 relabels this menu "Rule (uMode):" and hides the second one. -->
+        <label for="modeEven" id="evenLabel">Even triangles:</label>
+        <select id="modeEven">
+          <option value="0" selected>0. Linear (same as tab 4)</option>
+          <option value="1">1. Nearest vertex</option>
+          <option value="2">2. Sharpened</option>
+          <option value="3">3. Bands</option>
+          <option value="4">4. Wireframe</option>
+          <option value="5">5. Ripple (linear + nearest, animated)</option>
+          <option value="6">6. Growing territory (nearest vertex, animated)</option>
+          <option value="7">7. Growing wireframe (animated)</option>
+        </select>
+        <label for="modeOdd" id="oddLabel">Odd triangles:</label>
+        <select id="modeOdd">
+          <option value="0">0. Linear (same as tab 4)</option>
+          <option value="1" selected>1. Nearest vertex</option>
+          <option value="2">2. Sharpened</option>
+          <option value="3">3. Bands</option>
+          <option value="4">4. Wireframe</option>
+          <option value="5">5. Ripple (linear + nearest, animated)</option>
+          <option value="6">6. Growing territory (nearest vertex, animated)</option>
+          <option value="7">7. Growing wireframe (animated)</option>
+        </select>
+        <button id="playPause">Pause</button>
+        <div class="timeRow">
+          <input id="time" type="range" min="0" max="72" step="0.01" value="0"
+                 aria-label="Time in seconds (uTime)">
+          <span class="t" id="timeLabel">0.00 s</span>
+        </div>
+        <div class="uniforms" id="uniformReadout"></div>
+      </div>
+
+      <section id="trace">
+        <h2>Fragment trace</h2>
+        <div id="traceBody">
+          <p class="hint">Click anywhere on the cube. The cube stops, and this panel follows the fragment
+            under the mouse through the code: which triangle it is in, its weights, the three colors, the
+            rule that colors it, the lighting, and the pixel that was really drawn.</p>
+        </div>
+      </section>
+
+      <details>
+        <summary>Good to know</summary>
+        <p>The time slider is <code>uTime</code>. It also turns the cube, as in tabs 5 and 6
+          (angle = time × 0.3). It goes back to 0 after 72 s.</p>
+        <p>While the cube is stopped you can change the menus or drag the time slider. The trace
+          follows the same pixel.</p>
+        <p>The trace is worked out in JavaScript (a copy of the shader’s math) and then compared with
+          the pixel WebGL really drew. On the border between two branches, rounding can send the GPU
+          the other way, so the two may differ.</p>
+      </details>
+    </aside>
+  </main>
+
+  <!-- tab5-source.js, tab6-source.js: the text of 5-custom-interpolation.js
+       and 6-per-triangle-rules.js (generated copies).
+       index.js: this explorer. -->
+  <script src="tab5-source.js"></script>
+  <script src="tab6-source.js"></script>
+  <script src="index.js"></script>
+</body>
+</html>

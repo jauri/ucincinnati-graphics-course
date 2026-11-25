@@ -1,0 +1,255 @@
+<!doctype html>
+<!--
+  Cube color code walkthrough.
+  A step-by-step tour of "Ways to Color a Cube", tab 5
+  (5-custom-interpolation.js) or, with ?tab=6, tab 6
+  (6-per-triangle-rules.js). Each step shows one piece of the program,
+  explains it in words, draws a picture of it, and sets up a live cube
+  that runs the same shaders.
+  Open this file directly in a browser; no server is needed.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cube Color Code Walkthrough</title>
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --panel: #252526;
+      --panel-2: #2d2d30;
+      --text: #ddd;
+      --dim: #8a8a8a;
+      --comment: #6a9955;
+      --accent: #4fc1ff;
+      --step-bg: #2b3340;
+      --step-bar: #4fc1ff;
+      --tab6: #e7a64a;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+    }
+    [hidden] { display: none !important; }
+    a { color: var(--accent); }
+    code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.92em; color: #fff; }
+    button {
+      font: inherit; font-size: 0.9rem;
+      background: #3a3a3d; color: var(--text);
+      border: 1px solid #555; border-radius: 4px; padding: 4px 10px; cursor: pointer;
+    }
+    button:hover { background: #48484c; }
+    button:disabled { opacity: 0.4; cursor: default; }
+
+    /* ---- Header: title, tab switch, the section list with step dots ---- */
+    header { padding: 8px 16px 10px; background: #111; }
+    .titleRow { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+    header h1 { font-size: 1.1rem; margin: 0; }
+    .tabs { display: flex; gap: 4px; }
+    .tabs a {
+      padding: 4px 11px; border-radius: 6px; text-decoration: none;
+      background: #2a2a2a; color: #aaa; font-size: 0.88rem;
+    }
+    .tabs a:hover { color: #fff; }
+    .tabs a.current { background: #3b4f63; color: #fff; font-weight: bold; }
+    .titleRow .more { font-size: 0.85rem; color: var(--dim); }
+
+    #sectionNav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .sec {
+      display: flex; flex-direction: column; gap: 4px;
+      padding: 5px 10px 6px; border-radius: 6px; background: #222; cursor: pointer;
+      border: 1px solid transparent; min-width: 0;
+    }
+    .sec:hover { background: #2a2a2e; }
+    .sec.current { border-color: var(--accent); background: #1f2a35; }
+    .sec .name { font-size: 0.82rem; color: #ccc; white-space: nowrap; }
+    .sec.current .name { color: #fff; font-weight: bold; }
+    .dots { display: flex; gap: 5px; }
+    .dot {
+      width: 11px; height: 11px; border-radius: 50%; padding: 0;
+      border: 1.5px solid #777; background: transparent;
+    }
+    .dot:hover { border-color: #fff; background: #555; }
+    .dot.seen { background: #555; }
+    .dot.current { background: var(--accent); border-color: var(--accent); }
+    .dot.tab6 { border-color: var(--tab6); }
+
+    /* ---- Two columns: code (left) and the explanation (right) ---- */
+    main {
+      flex: 1; min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(380px, 560px);
+    }
+    @media (max-width: 950px) {
+      main { display: block; overflow: auto; }
+      #codePanel { height: 60vh; }
+      aside { overflow: visible !important; }
+    }
+
+    /* ---- Left: the code ---- */
+    #codePanel { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid #333; }
+    .code-head {
+      display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+      padding: 6px 12px; background: var(--panel-2); font-size: 0.88rem;
+    }
+    .code-head .file { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: bold; }
+    .code-head .legend { color: var(--dim); }
+    .code-head .spacer { flex: 1; }
+    .code-head label { color: #ccc; cursor: pointer; }
+    #code {
+      flex: 1; overflow: auto; background: var(--panel);
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 13px; line-height: 1.5;
+      padding: 6px 0 30vh;
+    }
+    .line { display: flex; white-space: pre; border-left: 3px solid transparent; }
+    .line .ln { flex: 0 0 4.2em; text-align: right; padding-right: 1em; color: #5a5a5a; user-select: none; }
+    .line .src { flex: 1; }
+    .line .cm { color: var(--comment); }
+    /* The lines of the current step. */
+    .line.step { background: var(--step-bg); border-left-color: var(--step-bar); }
+    .line.step .ln { color: #8fa3b8; }
+    /* Lines shown only because a student opened a fold: dimmed. */
+    .line.peek { opacity: 0.55; }
+    /* Tab 6: lines that differ from tab 5. */
+    .line.changed { border-left-color: var(--tab6); }
+    .line .tag6 {
+      color: var(--tab6); font-family: system-ui, sans-serif; font-size: 11px;
+      padding: 0 10px; user-select: none;
+    }
+    /* Fold rows: a whole section of the file, or a gap inside a section. */
+    .fold {
+      font-family: system-ui, sans-serif; font-size: 12.5px;
+      padding: 3px 12px; margin: 2px 0; cursor: pointer;
+      background: #333337; color: #bbb; user-select: none;
+    }
+    .fold:hover { background: #3c3c41; color: #fff; }
+    .fold .count { color: var(--dim); }
+    .fold.here { background: #2a3a4a; color: #fff; font-weight: bold; }
+    .gap {
+      font-family: system-ui, sans-serif; font-size: 12px; color: var(--dim);
+      padding: 1px 0 1px 5.4em; cursor: pointer; user-select: none;
+    }
+    .gap:hover { color: #fff; background: #2e2e31; }
+
+    /* ---- Right: the explanation, the picture, the live cube ---- */
+    aside { overflow: auto; padding: 12px 16px 30px; }
+    .stepHead { display: flex; align-items: center; gap: 8px; }
+    .stepHead .where { color: var(--dim); font-size: 0.85rem; flex: 1; }
+    #stepTitle { font-size: 1.15rem; margin: 6px 0 8px; color: #fff; }
+    #stepText { font-size: 0.95rem; line-height: 1.55; }
+    #stepText p { margin: 0 0 0.7em; }
+    #stepText .tab6note {
+      border-left: 3px solid var(--tab6); padding: 4px 10px; background: #2f2a22;
+    }
+    #picker { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 10px; }
+    #picker button.current { background: #3b4f63; border-color: var(--accent); color: #fff; }
+    .figure {
+      background: #181818; border: 1px solid #333; border-radius: 6px;
+      padding: 10px; margin: 10px 0;
+    }
+    .figure svg { display: block; width: 100%; height: auto; }
+    .figure .caption { font-size: 0.82rem; color: #aaa; margin-top: 6px; line-height: 1.4; }
+    .miniRow { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: center; }
+    canvas.mini { display: block; width: 240px; height: 210px; }
+    .miniNote { font-size: 0.88rem; line-height: 1.5; max-width: 230px; }
+    .swatch {
+      display: inline-block; width: 1em; height: 1em; vertical-align: -0.15em;
+      border: 1px solid #888; border-radius: 3px; margin: 0 2px;
+    }
+
+    .cubeBox { display: flex; gap: 12px; align-items: flex-start; margin-top: 12px; }
+    .canvasWrap {
+      position: relative; flex: 0 0 230px; height: 230px;
+      background: #1f1f1f; border: 1px solid #333; border-radius: 6px; overflow: hidden;
+    }
+    .canvasWrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+    #overlay { pointer-events: none; }
+    .cubeSide { font-size: 0.86rem; line-height: 1.45; color: #bbb; }
+    .cubeSide h3 { font-size: 0.9rem; margin: 0 0 4px; color: #fff; }
+    .cubeSide .readout { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; color: #ccc; margin: 6px 0; }
+    @media (max-width: 520px) {
+      .cubeBox { flex-direction: column; }
+      .canvasWrap { flex-basis: auto; width: 100%; height: 260px; }
+    }
+
+    .stepFoot { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
+    .stepFoot .spacer { flex: 1; }
+    .stepFoot .keys { color: var(--dim); font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="titleRow">
+      <h1>Cube color code walkthrough</h1>
+      <nav class="tabs">
+        <a id="tab5Link" href="?tab=5">Tab 5: custom interpolation</a>
+        <a id="tab6Link" href="?tab=6">Tab 6: per-triangle rules</a>
+      </nav>
+      <span class="more">Want to read everything at once? Try the
+        <a href="../cube-color-code-explorer/">code explorer</a>.</span>
+    </div>
+    <!-- index.js fills this: one box per section of the file, one dot per step. -->
+    <nav id="sectionNav" aria-label="Sections and steps"></nav>
+  </header>
+
+  <main>
+    <!-- Left: the code of this step. Everything else is folded. -->
+    <section id="codePanel">
+      <div class="code-head">
+        <span class="file" id="fileName"></span>
+        <span class="legend" id="codeLegend"></span>
+        <span class="spacer"></span>
+        <label><input type="checkbox" id="showComments"> Show the file’s comments</label>
+      </div>
+      <div id="code"></div>
+    </section>
+
+    <!-- Right: what this step does, in words and pictures. -->
+    <aside>
+      <div class="stepHead">
+        <button id="prevTop" aria-label="Previous step">◀ Prev</button>
+        <span class="where" id="stepWhere"></span>
+        <button id="nextTop" aria-label="Next step">Next ▶</button>
+      </div>
+      <h2 id="stepTitle"></h2>
+      <div id="picker" hidden></div>
+      <div id="stepText"></div>
+      <div class="figure" id="figure"></div>
+
+      <div class="cubeBox">
+        <div class="canvasWrap">
+          <canvas id="c"></canvas>
+          <canvas id="overlay"></canvas>
+        </div>
+        <div class="cubeSide">
+          <h3>The live cube</h3>
+          <div id="cubeNote"></div>
+          <div class="readout" id="readout"></div>
+          <button id="playPause">Pause</button>
+        </div>
+      </div>
+
+      <div class="stepFoot">
+        <button id="prev">◀ Prev</button>
+        <button id="next">Next ▶</button>
+        <span class="spacer"></span>
+        <span class="keys">or use the ← → keys</span>
+      </div>
+    </aside>
+  </main>
+
+  <!-- tab5-source.js, tab6-source.js: the text of 5-custom-interpolation.js
+       and 6-per-triangle-rules.js (generated copies).
+       index.js: this walkthrough. -->
+  <script src="tab5-source.js"></script>
+  <script src="tab6-source.js"></script>
+  <script src="index.js"></script>
+</body>
+</html>
